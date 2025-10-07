@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,6 +21,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -54,6 +57,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.endangeredanimals.R
+import com.example.endangeredanimals.R.drawable.filter
 import kotlinx.coroutines.launch
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -71,32 +75,50 @@ fun ViewMain() {
         topBar = {
             TopAppBar(
                 title = {
-                    OutlinedTextField(
-                        value = text,
-                        onValueChange = { text = it },
-                        placeholder = { Text("Nhập tên động vật") },
+                    Row(
                         modifier = Modifier
-                            .padding(3.dp)
-                            .fillMaxWidth(),
-                        maxLines = 1
-                    )
-                    Button(
-                        onClick = { println("dmmmm") },
-                        modifier = Modifier
-                            .padding(10.dp)
-                            ,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF228cdb))
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-
+                        OutlinedTextField(
+                            value = text,
+                            onValueChange = { text = it },
+                            placeholder = { Text("Nhập tên động vật") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Tìm kiếm",
+                                    tint = Color.Gray
+                                )
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp),
+                            maxLines = 1
+                        )
+                        Button(
+                            onClick = { println("dmmmm") },
+                            modifier = Modifier.padding(start = 8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF228cdb))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.filter),
+                                    contentDescription = "Lọc",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.size(4.dp))
+                                Text("Lọc")
+                            }
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFc28442)),
                 modifier = Modifier
-//                    .border(
-//                        color = Color.Gray,
-//                        width = 2.dp,
-//                        shape = RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp)
-//                )
                     .clip(RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp))
             )
         },
@@ -105,13 +127,7 @@ fun ViewMain() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(65.dp)
-                    .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
-//                    .border(
-//                        width = 2.dp,
-//                        color = Color.Gray,
-//                        shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)
-//                    )
-                ,
+                    .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)),
                 containerColor = Color(0xFFDDDDDD),
                 contentColor = Color.Black,
                 tonalElevation = 25.dp
