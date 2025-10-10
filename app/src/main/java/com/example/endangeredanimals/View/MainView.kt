@@ -3,36 +3,47 @@
 package com.example.endangeredanimals.View
 
 import android.annotation.SuppressLint
-import android.content.ClipData.Item
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -47,6 +58,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -55,12 +68,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.endangeredanimals.R
 import kotlinx.coroutines.launch
+import kotlin.math.absoluteValue
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun ViewMain() {
     var text by remember { mutableStateOf("") }
-    val scrollState = rememberScrollState()
     var selectItem by remember { mutableStateOf(0) }
     val muc = listOf("Home", "Game", "Love", "Profile")
     val scope = rememberCoroutineScope()
@@ -71,33 +84,60 @@ fun ViewMain() {
         topBar = {
             TopAppBar(
                 title = {
-                    OutlinedTextField(
-                        value = text,
-                        onValueChange = { text = it },
-                        placeholder = { Text("Nhập tên động vật") },
+                    Row(
                         modifier = Modifier
-                            .padding(3.dp)
-                            .fillMaxWidth(),
-                        maxLines = 1
-                    )
-                    Button(
-                        onClick = { println("dmmmm") },
-                        modifier = Modifier
-                            .padding(10.dp)
-                            ,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF228cdb))
+                            .fillMaxWidth()
+                            .padding(end = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-
+                        OutlinedTextField(
+                            value = text,
+                            onValueChange = { text = it },
+                            placeholder = { Text("Nhập tên động vật", style = TextStyle(color = Color.White, fontSize = 15.sp)) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Tìm kiếm",
+                                    tint = Color.White
+                                )
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(7.dp),
+                            maxLines = 1,
+                            shape = RoundedCornerShape(25.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedTextColor = Color.White,
+                                focusedTextColor = Color.White,
+                                unfocusedBorderColor = Color.White,
+                                focusedBorderColor = Color.White,
+                                cursorColor = Color.White
+                            )
+                        )
+                        Button(
+                            onClick = { println("dmmmm") },
+                            modifier = Modifier.padding(start = 8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF14752b))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.filter),
+                                    contentDescription = "Lọc",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.size(4.dp))
+                                Text("Lọc")
+                            }
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFc28442)),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF37ab3c)),
                 modifier = Modifier
-//                    .border(
-//                        color = Color.Gray,
-//                        width = 2.dp,
-//                        shape = RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp)
-//                )
                     .clip(RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp))
+                    .fillMaxWidth()
             )
         },
         bottomBar = {
@@ -105,13 +145,7 @@ fun ViewMain() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(65.dp)
-                    .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
-//                    .border(
-//                        width = 2.dp,
-//                        color = Color.Gray,
-//                        shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)
-//                    )
-                ,
+                    .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)),
                 containerColor = Color(0xFFDDDDDD),
                 contentColor = Color.Black,
                 tonalElevation = 25.dp
@@ -150,127 +184,131 @@ fun ViewMain() {
             }
         }
     ) { innerPadding ->
-        Box(
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
             modifier = Modifier
-                .verticalScroll(scrollState)
                 .padding(innerPadding)
-                .clip(RoundedCornerShape(10.dp))
+                .fillMaxSize()
                 .background(Color.White),
-            contentAlignment = Alignment.TopCenter,
-        ){
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(7.dp)
-                    .background(Color.White)
-            ) {
+            contentPadding = PaddingValues(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Column { // Bọc trong Column để có thể thêm các modifier nếu cần
+                    var selectedCategoryIndex by remember { mutableStateOf(-1) }
+                    val list = listOf(
+                        "Cầy", "Gà", "Nhông", "Vịt", "Thạch Sùng",
+                        "Khỉ", "Voọc", "Vượn", "Chuột", "Dơi"
+                    )
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 5.dp),
+                        contentPadding = PaddingValues(horizontal = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        itemsIndexed(list) { index, item ->
+                            val isSelected = selectedCategoryIndex == index
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .clickable {
+                                        selectedCategoryIndex = index
+                                        println("Đã chọn: $item")
+                                    },
+                                shape = RoundedCornerShape(20.dp),
+                                color = if (isSelected) Color(0xFF37ab3c) else Color.Transparent,
+                                border = BorderStroke(1.dp, Color(0xFF37ab3c))
+                            ) {
+                                Text(
+                                    text = item,
+                                    color = if (isSelected) Color.White else Color.Black,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Card(
-                    modifier = Modifier
-                        .padding(7.dp)
-                        .fillMaxWidth(),
+                    modifier = Modifier.padding(bottom = 8.dp), // Thêm padding dưới
                     elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFebebeb))
                 ) {
-                    Column(modifier = Modifier
-                        .padding(10.dp)
-                        .align(Alignment.CenterHorizontally)) {
-                        Image(
-                            painter = painterResource(R.drawable.avata2),
-                            contentDescription = "thotrong",
-                            modifier = Modifier.padding(10.dp)
-                        )
-                        Text(
-                            text = "Thỏ cơ bắp ",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = Color.Black)
-                        Text(
-                            text = "Cháu ông Năm",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Black)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Button(
-                            onClick = { println("dmmmm") },
+                        val imageList = listOf(R.drawable.lion, R.drawable.pubg, R.drawable.ghost)
+                        val pagerState = rememberPagerState { imageList.size }
+                        HorizontalPager(
+                            state = pagerState,
                             modifier = Modifier
-                                .padding(5.dp)
-                                .weight(1f)
-                        ) {
-                            Text("AAAAAAAA")
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentPadding = PaddingValues(horizontal = 32.dp)
+                        ) { page ->
+                            Card(
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        val pageOffset = pagerState.getOffsetDistanceInPages(page)
+                                        scaleX = 0.85f + 0.15f * (1f - pageOffset.absoluteValue)
+                                        scaleY = 0.85f + 0.15f * (1f - pageOffset.absoluteValue)
+                                        alpha = 0.5f + 0.5f * (1f - pageOffset.absoluteValue)
+                                    }
+                                    .fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(id = imageList[page]),
+                                    contentDescription = "Slide $page",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.size(25.dp))
-                        Button(
-                            onClick = { println("gasd") },
-                            modifier = Modifier
-                                .padding(5.dp)
-                                .weight(1f)
+                        Row(
+                            Modifier
+                                .height(30.dp)
+                                .padding(top = 10.dp)
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            Text("BBBBBBBB")
+                            repeat(imageList.size) { iteration ->
+                                val color = if (pagerState.currentPage == iteration) Color.DarkGray else Color.LightGray
+                                Box(
+                                    modifier = Modifier
+                                        .padding(4.dp)
+                                        .clip(CircleShape)
+                                        .background(color)
+                                        .size(10.dp)
+                                )
+                            }
                         }
                     }
                 }
-                Text(
-                    text = "Nhập tên:",
-                    modifier = Modifier.padding(start = 8.dp),
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(5.dp))
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    placeholder = { Text("Nhập bất cứ thứ gì vào") },
-                    modifier = Modifier
-                        .padding(3.dp)
-                        .fillMaxWidth(),
-                    maxLines = 2,
-                    textStyle = TextStyle(color = Color.Black)
-                )
-                Button(
-                    onClick = { scope.launch { showBottomSheet = true } },
-                    modifier = Modifier
-                        .padding(10.dp)
-                        .align(Alignment.CenterHorizontally),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF228cdb))
-                ) {
-                    Text("OK")
-                }
-                Box(
-                    modifier = Modifier.size(300.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.avata),
-                        modifier = Modifier
-                            .size(300.dp)
-                            .align(Alignment.Center),
-                        contentDescription = "anh tho"
-                    )
-                }
-                val list = listOf(
-                    Item("aaaa"),
-                    Item("bbbb"),
-                    Item("cccc"),
-                    Item("aaaa"),
-                    Item("bbbb"),
-                    Item("cccc"),
-                    Item("aaaa"),
-                    Item("bbbb"),
-                    Item("cccc")
-                )
-                LazyRow(
-                    modifier = Modifier.padding(5.dp),
-                    contentPadding = PaddingValues(10.dp)
-                ) {
-                    items(list) { item ->
-                        Text(
-                            text = "${item.text}",
-                            modifier = Modifier.padding(horizontal = 10.dp)
-                        )
-                    }
+            }
 
+            // -- MỤC 3: DANH SÁCH ĐỘNG VẬT --
+            // Giả sử bạn có một danh sách động vật để hiển thị
+            val animalItems = (1..20).toList()
+            items(animalItems) { animalId ->
+                Card(
+                    modifier = Modifier.height(150.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        // Thay thế bằng nội dung thực của bạn, ví dụ: Ảnh và Tên
+                        Text("Động vật $animalId", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
