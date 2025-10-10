@@ -9,7 +9,7 @@ private val LightColorScheme = lightColorScheme(
     primary = Color(0xFFE0610D), // Màu từ theme.xml
     secondary = Color(0xFFab310f), // Màu từ theme.xml
     tertiary = Color(0xFF228cdb) // Màu từ theme.xml
-    // Thêm các màu khác nếu cần
+
 )
 
 @Composable

@@ -61,8 +61,10 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.glance.appwidget)
+    implementation("androidx.navigation:navigation-compose:2.8.0-beta01")
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
 }
