@@ -63,7 +63,7 @@ fun HomeScreen() {
     ) {
 
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Column { // Bọc trong Column để có thể thêm các modifier nếu cần
+            Column {
                 var selectedCategoryIndex by remember { mutableStateOf(-1) }
                 val list = listOf(
                     "Cầy", "Gà", "Nhông", "Vịt", "Thạch Sùng",
@@ -166,8 +166,6 @@ fun HomeScreen() {
             }
         }
 
-        // -- MỤC 3: DANH SÁCH ĐỘNG VẬT --
-        // Giả sử bạn có một danh sách động vật để hiển thị
         val animalItems = (1..20).toList()
         items(animalItems) { animalId ->
             Card(
@@ -176,7 +174,6 @@ fun HomeScreen() {
                 elevation = CardDefaults.cardElevation(2.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    // Thay thế bằng nội dung thực của bạn, ví dụ: Ảnh và Tên
                     Text("Động vật $animalId", fontWeight = FontWeight.Bold)
                 }
             }

@@ -43,6 +43,9 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.Navigation.AppNavigation
+import com.example.endangeredanimals.ui.AppBottomNavBackground
+import com.example.endangeredanimals.ui.AppButtonLoc
+import com.example.endangeredanimals.ui.AppPrimaryColor
 import com.example.endangeredanimals.ui.EndangeredAnimalsTheme
 
 class MainActivity : ComponentActivity() {
@@ -106,7 +109,7 @@ fun MainAppScreen() {
                         Button(
                             onClick = { println("dmmmm") },
                             modifier = Modifier.padding(start = 8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF14752b))
+                            colors = ButtonDefaults.buttonColors(containerColor = AppButtonLoc)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically
@@ -123,7 +126,7 @@ fun MainAppScreen() {
                         }
                     }
                 },
-                colors = topAppBarColors(containerColor = Color(0xFF37ab3c)),
+                colors = topAppBarColors(containerColor = AppPrimaryColor),
                 modifier = Modifier
                     .clip(RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp))
                     .fillMaxWidth()
@@ -138,7 +141,7 @@ fun MainAppScreen() {
                     .fillMaxWidth()
                     .height(65.dp)
                     .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)),
-                containerColor = Color(0xFFDDDDDD),
+                containerColor = AppBottomNavBackground,
             ) {
                 muc.forEach { (name, route, iconRes) ->
                     val isSelected = currentRoute == route

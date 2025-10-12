@@ -6,9 +6,9 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@drawable/avata"
+        android:icon="@drawable/avata2"
         android:label="@string/app_name"
-        android:roundIcon="@drawable/avata"
+        android:roundIcon="@drawable/avata2"
         android:supportsRtl="true"
         android:theme="@style/Theme.EndangeredAnimals">
         <activity
