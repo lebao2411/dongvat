@@ -40,6 +40,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.Navigation.AppNavigation
@@ -60,111 +61,37 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppScreen() {
     val navController = rememberNavController()
-    var text by remember { mutableStateOf("") }
-    val muc = listOf(
-        Triple("Home", "home", R.drawable.home),
-        Triple("Game", "game", R.drawable.game),
-        Triple("Love", "love", R.drawable.favorite),
-        Triple("Profile", "profile", R.drawable.profile)
+    // Lấy route hiện tại để quyết định ẩn/hiện các thanh bar
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Danh sách các màn hình không hiển thị TopAppBar và BottomBar
+    val screensWithoutBars = listOf(
+        "result_screen",
+        "animal_screen/{animalId}" // Đảm bảo khớp với định nghĩa route trong AppNavigation
     )
+    val shouldShowBars = currentRoute !in screensWithoutBars
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(end = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = text,
-                            onValueChange = { text = it },
-                            placeholder = { Text("Nhập tên động vật", style = TextStyle(color = Color.White, fontSize = 15.sp)) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Tìm kiếm",
-                                    tint = Color.White
-                                )
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(7.dp),
-                            maxLines = 1,
-                            shape = RoundedCornerShape(25.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedTextColor = Color.White,
-                                focusedTextColor = Color.White,
-                                unfocusedBorderColor = Color.White,
-                                focusedBorderColor = Color.White,
-                                cursorColor = Color.White
-                            )
-                        )
-                        Button(
-                            onClick = { println("dmmmm") },
-                            modifier = Modifier.padding(start = 8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AppButtonLoc)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.filter),
-                                    contentDescription = "Lọc",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.size(4.dp))
-                                Text("Lọc")
-                            }
-                        }
+            // Chỉ hiển thị TopAppBar nếu shouldShowBars là true
+            if (shouldShowBars) {
+                MainTopAppBar(
+                    onSearchQueryChanged = {
+                        // Khi người dùng bắt đầu nhập, điều hướng đến ResultScreen
+                        navController.navigate("result_screen")
+                        // Trong tương lai, bạn sẽ truyền `it` (từ khóa tìm kiếm) cho ViewModel
                     }
-                },
-                colors = topAppBarColors(containerColor = AppPrimaryColor),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp))
-                    .fillMaxWidth()
-            )
+                )
+            }
         },
         bottomBar = {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
-
-            NavigationBar(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(65.dp)
-                    .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)),
-                containerColor = AppBottomNavBackground,
-            ) {
-                muc.forEach { (name, route, iconRes) ->
-                    val isSelected = currentRoute == route
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = {
-                            navController.navigate(route) {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                painter = painterResource(id = iconRes),
-                                contentDescription = name,
-                                tint = if (isSelected) Color.Black else Color.Gray,
-                                modifier = Modifier.size(25.dp)
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent)
-                    )
-                }
+            // Chỉ hiển thị BottomBar nếu shouldShowBars là true
+            if (shouldShowBars) {
+                MainBottomBar(navController = navController)
             }
         }
     ) { innerPadding ->
@@ -177,8 +104,120 @@ fun MainAppScreen() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@Preview(showBackground = true)
-fun MainAppScreenPreview() {
-    MainAppScreen()
+private fun MainTopAppBar(onSearchQueryChanged: (String) -> Unit) {
+    var text by remember { mutableStateOf("") }
+
+    TopAppBar(
+        title = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = text,
+                    // Khi giá trị thay đổi, gọi lambda được truyền vào
+                    onValueChange = {
+                        text = it
+                        onSearchQueryChanged(it)
+                    },
+                    placeholder = { Text("Nhập tên động vật", style = TextStyle(color = Color.White, fontSize = 15.sp)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Tìm kiếm",
+                            tint = Color.White
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(7.dp),
+                    maxLines = 1,
+                    shape = RoundedCornerShape(25.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedTextColor = Color.White,
+                        focusedTextColor = Color.White,
+                        unfocusedBorderColor = Color.White,
+                        focusedBorderColor = Color.White,
+                        cursorColor = Color.White
+                    )
+                )
+                Button(
+                    onClick = { /* TODO: Xử lý sự kiện nhấn nút Lọc */ },
+                    modifier = Modifier.padding(start = 8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AppButtonLoc)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.filter),
+                            contentDescription = "Lọc",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.size(4.dp))
+                        Text("Lọc")
+                    }
+                }
+            }
+        },
+        colors = topAppBarColors(containerColor = AppPrimaryColor),
+        modifier = Modifier
+            .clip(RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp))
+            .fillMaxWidth()
+    )
 }
 
+@Composable
+private fun MainBottomBar(navController: NavController) {
+    val muc = listOf(
+        Triple("Home", "home", R.drawable.home),
+        Triple("Game", "game", R.drawable.game),
+        Triple("Love", "love", R.drawable.favorite),
+        Triple("Profile", "profile", R.drawable.profile)
+    )
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    NavigationBar(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(65.dp)
+            .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)),
+        containerColor = AppBottomNavBackground,
+    ) {
+        muc.forEach { (name, route, iconRes) ->
+            val isSelected = currentRoute == route
+            NavigationBarItem(
+                selected = isSelected,
+                onClick = {
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                icon = {
+                    Icon(
+                        painter = painterResource(id = iconRes),
+                        contentDescription = name,
+                        tint = if (isSelected) Color.Black else Color.Gray,
+                        modifier = Modifier.size(25.dp)
+                    )
+                },
+                colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent)
+            )
+        }
+    }
+}
+
+
+@Preview(showBackground = true)
+@Composable
+fun MainAppScreenPreview() {
+    EndangeredAnimalsTheme {
+        MainAppScreen()
+    }
+}

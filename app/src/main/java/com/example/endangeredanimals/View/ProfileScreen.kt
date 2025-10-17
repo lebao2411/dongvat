@@ -16,13 +16,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ui.AppGrayBlue
 import com.example.endangeredanimals.ui.AppPrimaryColor
 import com.example.endangeredanimals.ui.AppWarningColor
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(navController: NavController) { // <-- THÊM NavController
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -76,7 +78,7 @@ fun ProfileScreen() {
                 }
             }
         }
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -98,6 +100,26 @@ fun ProfileScreen() {
                 contentColor = Color.White
             )
         }
+
+        Button(
+            onClick = {
+                navController.navigate("login_screen") {
+                    popUpTo(0) {
+                        inclusive = true
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+        ) {
+            Icon(
+                imageVector = Icons.Default.ExitToApp,
+                contentDescription = "Đăng xuất",
+                modifier = Modifier.padding(end = 8.dp)
+            )
+            Text("Đăng xuất")
+        }
+
     }
 }
 
@@ -167,5 +189,6 @@ fun ActionButton(
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {
-    ProfileScreen()
+    ProfileScreen(navController = rememberNavController())
 }
+
