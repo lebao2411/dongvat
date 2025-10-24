@@ -1,10 +1,12 @@
 package com.example.endangeredanimals
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,160 +15,177 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.Navigation.AppNavigation
 import com.example.endangeredanimals.ui.AppBottomNavBackground
-import com.example.endangeredanimals.ui.AppButtonLoc
 import com.example.endangeredanimals.ui.AppPrimaryColor
 import com.example.endangeredanimals.ui.EndangeredAnimalsTheme
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent{
+        setContent {
             EndangeredAnimalsTheme {
-                MainAppScreen()
+                // --- BẮT ĐẦU SỬA LỖI ---
+                // Chỉ gọi một hàm duy nhất là App() làm điểm bắt đầu
+                App()
+                // --- KẾT THÚC SỬA LỖI ---
             }
         }
     }
 }
 
 @Composable
-fun MainAppScreen() {
+fun App() {
+    // 1. Tạo NavController ở đây, đây là nguồn sự thật duy nhất.
     val navController = rememberNavController()
-    // Lấy route hiện tại để quyết định ẩn/hiện các thanh bar
+
+    // --- Logic lắng nghe trạng thái đăng nhập ---
+    DisposableEffect(Unit) {
+        val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            val user = firebaseAuth.currentUser
+            if (user == null && navController.currentDestination?.route != "login") {
+                Log.d("AuthStateListener", "User is signed out or token is invalid. Navigating to login.")
+                // Điều hướng về màn hình login và xóa hết các màn hình cũ
+                navController.navigate("login") {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        }
+        Firebase.auth.addAuthStateListener(authStateListener)
+        onDispose {
+            Firebase.auth.removeAuthStateListener(authStateListener)
+        }
+    }
+
+    val startDestination by remember { mutableStateOf(if (Firebase.auth.currentUser != null) "home" else "login") }
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Danh sách các màn hình không hiển thị TopAppBar và BottomBar
-    val screensWithoutBars = listOf(
-        "result_screen",
-        "animal_screen/{animalId}" // Đảm bảo khớp với định nghĩa route trong AppNavigation
+    val fullScreenRoutes = listOf(
+        "login",
+        "signup_screen",
+        "forgotpassword_screen",
+        "result_screen/{query}",
+        "animal_screen/{animalId}",
+        "changepassword_screen"
     )
-    val shouldShowBars = currentRoute !in screensWithoutBars
+    val shouldShowBars = currentRoute !in fullScreenRoutes
 
     Scaffold(
         topBar = {
-            // Chỉ hiển thị TopAppBar nếu shouldShowBars là true
             if (shouldShowBars) {
                 MainTopAppBar(
-                    onSearchQueryChanged = {
-                        // Khi người dùng bắt đầu nhập, điều hướng đến ResultScreen
+                    onSearchNavigate = {
                         navController.navigate("result_screen")
-                        // Trong tương lai, bạn sẽ truyền `it` (từ khóa tìm kiếm) cho ViewModel
                     }
                 )
             }
         },
         bottomBar = {
-            // Chỉ hiển thị BottomBar nếu shouldShowBars là true
             if (shouldShowBars) {
                 MainBottomBar(navController = navController)
             }
         }
     ) { innerPadding ->
         AppNavigation(
+            startDestination = startDestination,
             navController = navController,
             modifier = Modifier.padding(innerPadding)
         )
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MainTopAppBar(onSearchQueryChanged: (String) -> Unit) {
-    var text by remember { mutableStateOf("") }
-
+private fun MainTopAppBar(onSearchNavigate: () -> Unit) {
     TopAppBar(
+        colors = topAppBarColors(containerColor = AppPrimaryColor),
         title = {
-            Row(
+            Image(
+                painter = painterResource(id = R.drawable.protect_animals),
+                contentDescription = "App Logo",
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(end = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .size(45.dp)
+                    .clip(RoundedCornerShape(25.dp))
+            )
+        },
+        actions = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(end = 16.dp)
             ) {
-                OutlinedTextField(
-                    value = text,
-                    // Khi giá trị thay đổi, gọi lambda được truyền vào
-                    onValueChange = {
-                        text = it
-                        onSearchQueryChanged(it)
-                    },
-                    placeholder = { Text("Nhập tên động vật", style = TextStyle(color = Color.White, fontSize = 15.sp)) },
-                    leadingIcon = {
+                Button(
+                    onClick = onSearchNavigate,
+                    shape = RoundedCornerShape(25.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White.copy(alpha = 0.2f)
+                    ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Tìm kiếm",
-                            tint = Color.White
-                        )
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(7.dp),
-                    maxLines = 1,
-                    shape = RoundedCornerShape(25.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedTextColor = Color.White,
-                        focusedTextColor = Color.White,
-                        unfocusedBorderColor = Color.White,
-                        focusedBorderColor = Color.White,
-                        cursorColor = Color.White
-                    )
-                )
-                Button(
-                    onClick = { /* TODO: Xử lý sự kiện nhấn nút Lọc */ },
-                    modifier = Modifier.padding(start = 8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppButtonLoc)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.filter),
-                            contentDescription = "Lọc",
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.size(4.dp))
-                        Text("Lọc")
+                        Text(
+                            text = "Tìm kiếm",
+                            color = Color.White,
+                            fontSize = 14.sp
+                        )
                     }
                 }
+
+                Spacer(modifier = Modifier.size(8.dp))
+
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = "Thông báo",
+                    tint = Color.White,
+                    modifier = Modifier.size(25.dp)
+                )
             }
-        },
-        colors = topAppBarColors(containerColor = AppPrimaryColor),
-        modifier = Modifier
-            .clip(RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp))
-            .fillMaxWidth()
+        }
     )
 }
 
@@ -175,7 +194,7 @@ private fun MainBottomBar(navController: NavController) {
     val muc = listOf(
         Triple("Home", "home", R.drawable.home),
         Triple("Game", "game", R.drawable.game),
-        Triple("Love", "love", R.drawable.favorite),
+        Triple("Favorite", "favorite_screen", R.drawable.favorite),
         Triple("Profile", "profile", R.drawable.profile)
     )
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -184,8 +203,7 @@ private fun MainBottomBar(navController: NavController) {
     NavigationBar(
         modifier = Modifier
             .fillMaxWidth()
-            .height(65.dp)
-            .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)),
+            .height(65.dp),
         containerColor = AppBottomNavBackground,
     ) {
         muc.forEach { (name, route, iconRes) ->
@@ -218,6 +236,6 @@ private fun MainBottomBar(navController: NavController) {
 @Composable
 fun MainAppScreenPreview() {
     EndangeredAnimalsTheme {
-        MainAppScreen()
+        App()
     }
 }

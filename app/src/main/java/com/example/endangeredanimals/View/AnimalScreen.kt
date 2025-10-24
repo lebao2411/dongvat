@@ -2,219 +2,186 @@
 
 package com.example.endangeredanimals.View
 
-import androidx.compose.foundation.Image
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.endangeredanimals.R
+import com.example.endangeredanimals.ViewModel.AnimalDetailViewModel
+import com.example.endangeredanimals.ViewModel.FavoriteViewModel
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
-// Lớp dữ liệu mẫu cho chi tiết động vật
-data class AnimalDetails(
-    val id: Int,
-    val vietnameseName: String,
-    val scientificName: String,
-    val conservationStatus: String,
-    val imageRes: Int,
-    val animalClass: String, // Lớp
-    val order: String, // Bộ
-    val distribution: String, // Phân bố
-    val populationStatus: String, // Hiện trạng quần thể
-    val populationTrend: String, // Xu hướng quần thể
-    val habitatType: String, // Dạng sinh cảnh sống
-    val habitatDistribution: String, // Dạng sinh cảnh phân bố
-    val reproduction: String, // Sinh sản
-    val food: String, // Thức ăn
-    val threats: String // Mối đe dọa
-)
-
-// Dữ liệu mẫu cho một con vật cụ thể
-private val sampleAnimalDetail = AnimalDetails(
-    id = 1,
-    vietnameseName = "Hổ Amur",
-    scientificName = "Panthera tigris altaica",
-    conservationStatus = "Nguy cấp (EN)",
-    imageRes = R.drawable.avata, // Thay bằng ID ảnh của bạn
-    animalClass = "Thú (Mammalia)",
-    order = "Ăn thịt (Carnivora)",
-    distribution = "Vùng Viễn Đông Nga và một phần nhỏ của Trung Quốc",
-    populationStatus = "Khoảng 540 cá thể hoang dã",
-    populationTrend = "Ổn định",
-    habitatType = "Rừng Taiga, rừng hỗn hợp",
-    habitatDistribution = "Phân mảnh",
-    reproduction = "Mang thai khoảng 103 ngày, đẻ 2-4 con",
-    food = "Hươu, lợn rừng, nai sừng tấm",
-    threats = "Săn trộm, mất môi trường sống"
-)
-
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun AnimalScreen(navController: NavController) {
-    // Trạng thái yêu thích
-    var isFavorite by remember { mutableStateOf(false) }
-
-    Scaffold(
-        topBar = {
-            // TopAppBar tùy chỉnh của màn hình này
-            AnimalDetailTopAppBar(
-                isFavorite = isFavorite,
-                onFavoriteClick = { isFavorite = !isFavorite },
-                onBackClick = {
-                    // Quay lại màn hình trước đó
-                    navController.popBackStack()
-                }
-            )
-        },
-        // Scaffold sẽ tự động xử lý phần đệm cho nội dung bên dưới TopAppBar
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding) // Áp dụng padding từ Scaffold
-                .verticalScroll(rememberScrollState()) // Cho phép cuộn toàn màn hình
-        ) {
-            // Nội dung chi tiết của con vật
-            AnimalContent(animal = sampleAnimalDetail)
-        }
-    }
-}
-
-@Composable
-private fun AnimalDetailTopAppBar(
-    isFavorite: Boolean,
-    onFavoriteClick: () -> Unit,
-    onBackClick: () -> Unit
+fun AnimalScreen(
+    navController: NavController,
+    animalId: String,
+    animalDetailViewModel: AnimalDetailViewModel = viewModel(),
+    favoriteViewModel: FavoriteViewModel = viewModel()
 ) {
-    TopAppBar(
-        title = { /* Để trống vì không có tiêu đề */ },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay lại"
-                )
-            }
-        },
-        actions = {
-            IconButton(onClick = onFavoriteClick) {
-                Icon(
-                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "Yêu thích",
-                    tint = if (isFavorite) Color.Red else LocalContentColor.current
-                )
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            // Làm cho TopAppBar trong suốt để thấy nội dung bên dưới khi cuộn
-            containerColor = Color.Transparent,
-            scrolledContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
-        )
-    )
-}
+    val systemUiController = rememberSystemUiController()
 
-/**
- * Phần nội dung chính, bao gồm ảnh và các bảng thông tin.
- */
-@Composable
-private fun AnimalContent(animal: AnimalDetails) {
-    Column {
-        // 1. Card ảnh và thông tin cơ bản
-        Image(
-            painter = painterResource(id = animal.imageRes),
-            contentDescription = animal.vietnameseName,
-            contentScale = ContentScale.Crop, // Lấp đầy không gian mà không méo ảnh
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f) // Tạo ảnh hình vuông
-        )
+    val animal by animalDetailViewModel.animal.collectAsState()
+    val favoriteAnimals by favoriteViewModel.favoriteAnimals.collectAsState()
 
-        // Phần thông tin ngay dưới ảnh
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(animal.vietnameseName, style = MaterialTheme.typography.headlineMedium)
-            Text(
-                animal.scientificName,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                "Tình trạng: ${animal.conservationStatus}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.error // Dùng màu đỏ cho tình trạng nguy cấp
-            )
+    val isFavorite = favoriteAnimals.any { it.animalID == animalId }
+
+    LaunchedEffect(key1 = animalId) {
+        animalDetailViewModel.loadAnimalDetails(animalId)
+        favoriteViewModel.loadFavoriteAnimals()
+        systemUiController.isSystemBarsVisible = false
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            systemUiController.isSystemBarsVisible = true
         }
+    }
 
-        // Đường kẻ phân cách
-        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+    Box(modifier = Modifier.fillMaxSize()) {
+        animal?.let { loadedAnimal ->
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Box {
+                    val imageModel = if (loadedAnimal.imageUrl.isNullOrBlank()) {
+                        R.drawable.protect_animals
+                    } else {
+                        loadedAnimal.imageUrl
+                    }
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(imageModel)
+                            .crossfade(true)
+                            .build(),
+                        placeholder = painterResource(R.drawable.avata),
+                        error = painterResource(R.drawable.save_animal),
+                        contentDescription = loadedAnimal.nameVn,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f / 1f)
+                    )
+                }
 
-        // 2. Bảng thông tin chi tiết
-        Column(modifier = Modifier.padding(16.dp)) {
-            InfoRow("Lớp", animal.animalClass)
-            InfoRow("Bộ", animal.order)
-            InfoRow("Phân bố", animal.distribution)
-            InfoRow("Hiện trạng quần thể", animal.populationStatus)
-            InfoRow("Xu hướng quần thể", animal.populationTrend)
-            InfoRow("Dạng sinh cảnh sống", animal.habitatType)
-            InfoRow("Dạng sinh cảnh phân bố", animal.habitatDistribution)
-            InfoRow("Sinh sản", animal.reproduction)
-            InfoRow("Thức ăn", animal.food)
-            InfoRow("Mối đe dọa", animal.threats)
+                Button(
+                    onClick = {
+                        favoriteViewModel.toggleFavorite(
+                            animalId = animalId,
+                            isCurrentlyFavorite = isFavorite,
+                            onComplete = {
+                                favoriteViewModel.loadFavoriteAnimals()
+                            }
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 12.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isFavorite) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = if (isFavorite) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = null,
+                        modifier = Modifier.size(ButtonDefaults.IconSize)
+                    )
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                    Text(
+                        text = if (isFavorite) "Đã yêu thích" else "Yêu thích",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = loadedAnimal.nameVn ?: "Chưa có tên tiếng Việt",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = loadedAnimal.nameLatin ?: "Chưa có tên khoa học",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Tình trạng: ${loadedAnimal.status ?: "Không xác định"}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Thông Tin Chi Tiết",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    InfoRow("Lớp", loadedAnimal.animalClass ?: "Chưa có thông tin")
+                    InfoRow("Loài (Bộ)", loadedAnimal.species ?: "Chưa có thông tin")
+                    InfoRow("Phân bố", loadedAnimal.location ?: "Chưa có thông tin")
+                    InfoRow("Hiện trạng quần thể", loadedAnimal.popStatus ?: "Chưa có thông tin")
+                    InfoRow("Xu hướng quần thể", loadedAnimal.popTrend ?: "Chưa có thông tin")
+                    InfoRow("Đặc điểm sinh cảnh", loadedAnimal.habitatFeat ?: "Chưa có thông tin")
+                    InfoRow("Loại sinh cảnh", loadedAnimal.habitatType ?: "Chưa có thông tin")
+                    InfoRow("Sinh sản", loadedAnimal.reproduction ?: "Chưa có thông tin")
+                    InfoRow("Thức ăn", loadedAnimal.diet ?: "Chưa có thông tin")
+                    InfoRow("Mối đe dọa", loadedAnimal.threats ?: "Chưa có thông tin")
+                }
+            }
+        } ?: run {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
         }
     }
 }
 
-/**
- * Một hàng trong bảng thông tin, gồm Tiêu đề và Nội dung.
- */
 @Composable
 private fun InfoRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 10.dp),
         verticalAlignment = Alignment.Top
     ) {
-        // Cột Tiêu đề
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(0.4f) // Tiêu đề chiếm 40% chiều rộng
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.4f)
         )
-        // Cột Nội dung
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(0.6f) // Nội dung chiếm 60% chiều rộng
+            lineHeight = 22.sp,
+            modifier = Modifier.weight(0.6f)
         )
-    }
-}
-
-
-@Preview(showBackground = true, name = "Animal Screen Preview")
-@Composable
-fun AnimalScreenPreview() {
-    MaterialTheme {
-        // Để xem trước, chúng ta tạo một NavController giả
-        AnimalScreen(navController = rememberNavController())
     }
 }

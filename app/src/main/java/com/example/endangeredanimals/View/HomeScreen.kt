@@ -37,55 +37,49 @@ import androidx.navigation.NavHostController
 import com.example.endangeredanimals.Model.Animal
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.HomeViewModel
-import java.io.Serializable
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import kotlin.math.absoluteValue
+import com.google.gson.Gson
 
 @Composable
 fun HomeScreen(
     navController: NavHostController,
-    homeViewModel: HomeViewModel = viewModel() // Nhận ViewModel
+    homeViewModel: HomeViewModel = viewModel(),
+    modifier: Modifier = Modifier
 ) {
-    // Lắng nghe trạng thái từ ViewModel
     val animalItems by homeViewModel.animalItems.collectAsState()
     val isLoading by homeViewModel.isLoading.collectAsState()
 
-    // Hiển thị vòng xoay tải nếu dữ liệu đang được load
     if (isLoading && animalItems.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
     } else {
-        // Hiển thị giao diện chính khi có dữ liệu
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
+                .padding(horizontal = 10.dp)
                 .background(Color.White),
-            contentPadding = PaddingValues(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = WindowInsets.navigationBars.asPaddingValues(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Mục 1: Danh mục gợi ý
             item(span = { GridItemSpan(maxLineSpan) }) {
                 CategorySuggestionRow(
                     categories = homeViewModel.suggestedCategories,
                     onCategoryClick = { category ->
-                        // Encode category để truyền an toàn qua URL
                         val encodedCategory = URLEncoder.encode(category, StandardCharsets.UTF_8.toString())
-                        // Truyền category như một query parameter
                         navController.navigate("result_screen?category=$encodedCategory")
                     }
                 )
             }
 
-            // Mục 2: Horizontal Pager
             item(span = { GridItemSpan(maxLineSpan) }) {
                 ImageSlider()
             }
 
-            // Mục 3: Tiêu đề danh sách
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
                     text = "Khám phá thế giới động vật",
@@ -94,12 +88,14 @@ fun HomeScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
-            
-            items(animalItems, key = { it.animalID }) { animal ->
+
+            items(animalItems, key = { it.animalID ?: it.hashCode() }) { animal ->
                 AnimalGridItem(
                     animal = animal,
                     onItemClick = {
-                        // Điều hướng đến AnimalScreen với ID của con vật
+                        val animalJson = Gson().toJson(animal)
+                        val encodedJson = URLEncoder.encode(animalJson, StandardCharsets.UTF_8.toString())
+
                         navController.navigate("animal_screen/${animal.animalID}")
                     }
                 )
@@ -116,7 +112,7 @@ private fun CategorySuggestionRow(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 5.dp),
+            .padding(vertical = 7.dp),
         contentPadding = PaddingValues(horizontal = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -124,7 +120,7 @@ private fun CategorySuggestionRow(
             Surface(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .clickable { onCategoryClick(category) }, // Gọi lambda khi click
+                    .clickable { onCategoryClick(category) },
                 shape = RoundedCornerShape(20.dp),
                 color = Color.Transparent,
                 border = BorderStroke(1.dp, Color(0xFF37ab3c))
@@ -212,27 +208,29 @@ fun AnimalGridItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onItemClick), // Thêm sự kiện click
+            .clickable(onClick = onItemClick),
         shape = RoundedCornerShape(10.dp),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             AsyncImage(
                 model = animal.imageUrl,
-                placeholder = painterResource(id = R.drawable.avata_panda),
-                error = painterResource(id = R.drawable.avata_panda),
+                placeholder = painterResource(id = R.drawable.save_animal),
+                error = painterResource(id = R.drawable.save_animal),
                 contentDescription = animal.nameVn,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .height(120.dp)
                     .fillMaxWidth()
             )
-            Text(
-                text = animal.nameVn,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(vertical = 8.dp),
-                textAlign = TextAlign.Center
-            )
+            animal.nameVn?.let {
+                Text(
+                    text = it,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }

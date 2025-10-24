@@ -14,10 +14,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
 
 @Composable
-fun GameScreen() {
+// Bước 1: Thêm NavController làm tham số
+fun GameScreen(navController: NavController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -34,7 +37,8 @@ fun GameScreen() {
 
         GameButton(
             imageRes = R.drawable.button_conservation,
-            onClick = { /* TODO: Điều hướng đến Game 2 */ }
+            // Bước 2: Thay đổi hành động onClick để điều hướng đến "inden_game"
+            onClick = { navController.navigate("inden_game") }
         )
     }
 }
@@ -68,8 +72,8 @@ fun GameButton(
 @Preview(showBackground = true)
 @Composable
 fun GameScreenPreview() {
-    // Để Preview hoạt động, bạn cần tạo 2 ảnh drawable mẫu
-    // Ví dụ: game1_background.png và game2_background.png
-    // Nếu chưa có, bạn có thể tạm dùng R.drawable.avatar
-    GameScreen()
+    // Tạo một NavController giả cho Preview
+    val navController = rememberNavController()
+    GameScreen(navController = navController)
 }
+

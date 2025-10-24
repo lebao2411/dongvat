@@ -27,7 +27,6 @@ sealed class SignUpUIState {
  */
 class SignUpViewModel : ViewModel() {
 
-    // --- State cho các ô nhập liệu ---
     var email by mutableStateOf("")
         private set
     var password by mutableStateOf("")
@@ -43,7 +42,6 @@ class SignUpViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
 
-    // --- Hàm cập nhật giá trị ---
     fun onEmailChange(newValue: String) {
         email = newValue
     }
@@ -56,12 +54,8 @@ class SignUpViewModel : ViewModel() {
         confirmPassword = newValue
     }
 
-    /**
-     * Xử lý sự kiện khi người dùng nhấn nút Đăng ký.
-     */
-    fun onSignUpClick() {
-        // --- 1. Validate đầu vào ---
-        if (email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
+    fun onSignUpClick(userName: String) { // Thêm userName vào đây
+        if (email.isBlank() || password.isBlank() || confirmPassword.isBlank() || userName.isBlank()) {
             _signUpUIState.value = SignUpUIState.Error("Vui lòng nhập đầy đủ thông tin.")
             return
         }
@@ -78,36 +72,34 @@ class SignUpViewModel : ViewModel() {
             return
         }
 
-        // --- 2. Thực hiện đăng ký với Firebase ---
         viewModelScope.launch {
             _signUpUIState.value = SignUpUIState.Loading
             try {
-                // Tạo người dùng với email và mật khẩu
                 val authResult = auth.createUserWithEmailAndPassword(email, password).await()
 
-                // Nếu tạo người dùng thành công, authResult.user sẽ không null
                 authResult.user?.let { firebaseUser ->
-                    // Tạo một đối tượng user để lưu vào Firestore
-                    val user = hashMapOf(
-                        "uid" to firebaseUser.uid,
+
+                    val accountData = hashMapOf(
+                        "userName" to userName,
                         "email" to firebaseUser.email,
-                        "createdAt" to System.currentTimeMillis()
-                        // Bạn có thể thêm các trường khác như displayName, photoUrl,... sau
+                        "habitatScore" to 0,
+                        "conservationScore" to 0
                     )
 
-                    // Lưu đối tượng user vào collection "users" với document ID là UID của người dùng
-                    db.collection("users").document(firebaseUser.uid).set(user).await()
+                    //    Sử dụng UID của người dùng làm ID cho document
+                    db.collection("accounts").document(firebaseUser.uid).set(accountData).await()
 
-                    // Cập nhật trạng thái thành Công
                     _signUpUIState.value = SignUpUIState.Success
+
                 } ?: run {
-                    // Trường hợp hiếm gặp khi user là null dù không có exception
                     _signUpUIState.value = SignUpUIState.Error("Không thể lấy thông tin người dùng sau khi tạo.")
                 }
 
             } catch (e: Exception) {
-                // Bắt các lỗi từ Firebase (ví dụ: email đã tồn tại, lỗi mạng,...)
-                val errorMessage = e.message ?: "Đã xảy ra lỗi không xác định."
+                val errorMessage = when {
+                    "email-already-in-use" in (e.message ?: "") -> "Email này đã được sử dụng."
+                    else -> e.message ?: "Đã xảy ra lỗi không xác định."
+                }
                 _signUpUIState.value = SignUpUIState.Error(errorMessage)
             }
         }

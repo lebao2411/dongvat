@@ -12,7 +12,20 @@
           "package_name": "com.example.endangeredanimals"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "752816137373-9vnbgf2e3lsvak7bdged13h4aoq8ca2k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.endangeredanimals",
+            "certificate_hash": "dc9af55e8345c61d82299fdddaca1fbe9979c7df"
+          }
+        },
+        {
+          "client_id": "752816137373-a09e3o6btcihvi22e9e7g0cmrc8rjl0p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAoyv9ltUyRVonYquNi04J7PT8W2YvviZM"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "752816137373-a09e3o6btcihvi22e9e7g0cmrc8rjl0p.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

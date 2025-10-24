@@ -1,7 +1,12 @@
 package com.example.endangeredanimals.View
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -15,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -27,25 +33,88 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
+import com.example.endangeredanimals.ViewModel.LoginUIState
+import com.example.endangeredanimals.ViewModel.LoginViewModel
 import com.example.endangeredanimals.ui.AppPrimaryColor
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 
 @Composable
-fun LogInScreen(navController: NavController) {
+fun LogInScreen(
+    navController: NavController,
+    loginViewModel: LoginViewModel = viewModel()
+) {
     var email by remember { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
+    val context = LocalContext.current
+
+    val googleSignInClient = remember {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, gso)
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            loginViewModel.handleGoogleSignInResult(result.data)
+        } else {
+            // Nếu người dùng hủy, reset lại trạng thái Loading
+            Toast.makeText(context, "Đã hủy đăng nhập bằng Google", Toast.LENGTH_SHORT).show()
+            loginViewModel.clearErrorState() // Đưa về Idle
+        }
+    }
+
+    val loginState by loginViewModel.loginUIState.collectAsState()
+
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = AppPrimaryColor,
+        unfocusedBorderColor = Color.Gray,
+        cursorColor = AppPrimaryColor,
+        focusedLabelColor = AppPrimaryColor,
+    )
+
+    // Xử lý các trạng thái từ ViewModel
+    when (val state = loginState) {
+        is LoginUIState.Loading -> {
+        }
+
+        is LoginUIState.Success -> {
+            LaunchedEffect(Unit) {
+                Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
+                navController.navigate("home") {
+                    popUpTo(0)
+                }
+            }
+        }
+
+        is LoginUIState.Error -> {
+            LaunchedEffect(state.message) {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                loginViewModel.clearErrorState()
+            }
+        }
+        is LoginUIState.Idle -> {
+        }
+    }
+
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -63,7 +132,9 @@ fun LogInScreen(navController: NavController) {
                 label = { Text("Email") },
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email Icon") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                colors = textFieldColors
             )
 
             OutlinedTextField(
@@ -76,20 +147,18 @@ fun LogInScreen(navController: NavController) {
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
-                    val image = if (passwordVisible) {
-                        painterResource(id = R.drawable.visibility)
-                    } else {
-                        painterResource(id = R.drawable.visibility_off)
-                    }
+                    val image = if (passwordVisible) R.drawable.visibility else R.drawable.visibility_off
                     val description = if (passwordVisible) "Ẩn mật khẩu" else "Hiện mật khẩu"
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(
-                            painter = image,
+                            painter = painterResource(id = image),
                             contentDescription = description,
                             modifier = Modifier.size(24.dp)
                         )
                     }
-                }
+                },
+                shape = RoundedCornerShape(16.dp),
+                colors = textFieldColors
             )
 
             ClickableText(
@@ -98,23 +167,22 @@ fun LogInScreen(navController: NavController) {
                         append("Quên mật khẩu?")
                     }
                 },
-                onClick = {
-                    // TODO: Điều hướng đến màn hình quên mật khẩu
-                    println("Chuyển đến màn hình quên mật khẩu")
-                },
+                // SỬA: Đích đến là "forgotpassword_screen", không phải "forgotpassword"
+                onClick = { navController.navigate("forgotpassword_screen") },
                 modifier = Modifier.fillMaxWidth(),
                 style = LocalTextStyle.current.copy(textAlign = TextAlign.End)
             )
 
             Button(
                 onClick = {
-                    // TODO: Xử lý logic đăng nhập
-                    println("Email: $email, Password: $password")
+                    loginViewModel.onLoginClick(email, password)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AppPrimaryColor)
+                colors = ButtonDefaults.buttonColors(containerColor = AppPrimaryColor),
+                enabled = loginState !is LoginUIState.Loading,
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Text("Đăng nhập", fontSize = 18.sp)
             }
@@ -133,13 +201,20 @@ fun LogInScreen(navController: NavController) {
                 Divider(modifier = Modifier.weight(1f))
             }
 
-            OutlinedButton(
-                onClick = { /* TODO: Xử lý logic đăng nhập bằng Google */ },
+            Button(
+                onClick = {
+                    loginViewModel.onGoogleSignInClick(launcher, googleSignInClient)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                border = BorderStroke(1.dp, Color.Gray),
-                shape = MaterialTheme.shapes.medium
+                shape = RoundedCornerShape(16.dp),
+                enabled = loginState !is LoginUIState.Loading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color.Black
+                ),
+                border = BorderStroke(1.dp, Color.Gray)
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.google_logo),
@@ -148,11 +223,15 @@ fun LogInScreen(navController: NavController) {
                     tint = Color.Unspecified
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Đăng nhập với Google", color = MaterialTheme.colorScheme.onSurface)
+                Text("Đăng nhập với Google")
             }
 
-
             SignUpText(navController = navController)
+        }
+
+        // Hiển thị vòng xoay loading
+        if (loginState is LoginUIState.Loading) {
+            CircularProgressIndicator(color = AppPrimaryColor)
         }
     }
 }
@@ -178,6 +257,7 @@ fun SignUpText(navController: NavController) {
         onClick = { offset ->
             annotatedString.getStringAnnotations(tag = "SignUp", start = offset, end = offset)
                 .firstOrNull()?.let {
+                    // SỬA: Đích đến là "signup_screen" để khớp với NavGraph
                     navController.navigate("signup_screen")
                 }
         },

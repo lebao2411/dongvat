@@ -1,6 +1,6 @@
 package com.example.endangeredanimals.Model
 
 data class Favorite(
-    val userID: String = "",
-    val animalID: String = ""
+    val userId: String = "",
+    val animalId: String = ""
 )
