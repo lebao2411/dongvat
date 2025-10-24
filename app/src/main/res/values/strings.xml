@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Endangered Animals</string>
+
+    <string name="default_web_client_id" translatable="false">752816137373-a09e3o6btcihvi22e9e7g0cmrc8rjl0p.apps.googleusercontent.com</string>
 </resources>

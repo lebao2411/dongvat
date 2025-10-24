@@ -1,25 +1,57 @@
 package com.example.endangeredanimals.Model
 
-import com.google.firebase.firestore.Exclude
-import com.google.firebase.firestore.PropertyName
+import com.google.gson.annotations.SerializedName
 
 data class Animal(
-    @get:Exclude var animalID: String = "",
+    @SerializedName("animalId")
+    var animalID: String? = null,
 
-    val nameVn: String = "",
-    val nameLatin: String = "",
-    val status: String = "",
-    @get:PropertyName("class")
-    @set:PropertyName("class")
-    var className: String = "",
-    val species: String = "",
-    val location: String = "",
-    val popStatus: String = "",
-    val popTrend: String = "",
-    val habitatFeat: String = "",
-    val habitatType: String = "",
-    val reproduction: String = "",
-    val diet: String = "",
-    val threats: String = "",
-    val imageUrl: String = ""
-)
+    @SerializedName("nameVn")
+    val nameVn: String? = null,
+
+    @SerializedName("nameLatin")
+    val nameLatin: String? = null,
+
+    @SerializedName("status")
+    val status: String? = null,
+
+    @SerializedName("class")
+    val animalClass: String? = null,
+
+    @SerializedName("species")
+    val species: String? = null,
+
+    @SerializedName("location")
+    val location: String? = null,
+
+    @SerializedName("popStatus")
+    val popStatus: String? = null,
+
+    @SerializedName("popTrend")
+    val popTrend: String? = null,
+
+    @SerializedName("habitatFeat")
+    val habitatFeat: String? = null,
+
+    @SerializedName("habitatType")
+    val habitatType: String? = null,
+
+    @SerializedName("reproduction")
+    val reproduction: String? = null,
+
+    @SerializedName("diet")
+    val diet: String? = null,
+
+    @SerializedName("threats")
+    val threats: String? = null,
+
+    @SerializedName("imageUrl")
+    val imageUrl: String? = null,
+
+) {
+    constructor() : this(
+        null, null, null, null, null,
+        null, null, null, null, null,
+        null, null, null, null, null
+    )
+}

@@ -18,7 +18,7 @@ class HomeViewModel : ViewModel() {
         "Khỉ", "Voọc", "Vượn", "Chuột", "Dơi"
     )
 
-    private val _animalItems = MutableStateFlow<List<Animal>>(emptyList()) // SỬA Ở ĐÂY
+    private val _animalItems = MutableStateFlow<List<Animal>>(emptyList())
     val animalItems = _animalItems.asStateFlow()
 
     private val _isLoading = MutableStateFlow(true)
@@ -41,10 +41,9 @@ class HomeViewModel : ViewModel() {
 
                 val animalsList = querySnapshot.documents.mapNotNull { document ->
                     val animal = document.toObject<Animal>()
-                    animal?.apply {
-                        this.animalID = document.id // Gán ID của document
-                    }
+                    animal?.copy(animalID = document.id)
                 }
+
 
                 _animalItems.value = animalsList
                 Log.d("HomeViewModel", "Successfully fetched ${animalsList.size} animals.")

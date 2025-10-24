@@ -1,9 +1,7 @@
 package com.example.endangeredanimals.Navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -12,10 +10,10 @@ import androidx.navigation.navArgument
 import com.example.endangeredanimals.View.*
 
 @Composable
-fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifier) {
+fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifier, startDestination: String) {
     NavHost(
         navController = navController,
-        startDestination = "login",
+        startDestination = startDestination,
         modifier = modifier
     ) {
         composable("login") {
@@ -25,23 +23,46 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
             SignUpScreen(navController = navController)
         }
 
+        composable("forgotpassword_screen") {
+            ForgotPasswordScreen(navController = navController)
+        }
+
         composable("home") {
             HomeScreen(navController = navController)
         }
-        composable("game") { GameScreen() }
-        composable("love") { LoveScreen() }
+
+        composable("inden_game") {
+            IndenGameScreen(navController = navController)
+        }
+
+        composable("changepassword_screen") {
+            ChangePasswordScreen(navController = navController)
+        }
+        composable("game") { GameScreen(navController = navController) }
+
+        composable(route = "favorite_screen") {
+            FavoriteScreen(navController = navController)
+        }
 
         composable("profile") {
             ProfileScreen(navController = navController)
         }
 
-        val resultScreenRoute = "result_screen/{initialQuery}"
         composable(
-            route = "result_screen?category={category}",
-            arguments = listOf(navArgument("category") { type = NavType.StringType })
+            route = "animal_screen/{animalId}",
+            arguments = listOf(navArgument("animalId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val category = backStackEntry.arguments?.getString("category") ?: ""
-            ResultScreen(navController = navController, category = category)
+            val animalId = backStackEntry.arguments?.getString("animalId")
+
+            if (animalId != null) {
+                AnimalScreen(animalId = animalId, navController = navController)
+            }
+        }
+
+        composable("result_screen") {
+            ResultScreen(
+                navController = navController
+            )
         }
     }
 }
