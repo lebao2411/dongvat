@@ -35,6 +35,11 @@ fun IndenGameScreen(
 ) {
     val gameState by gameViewModel.gameState.collectAsState()
 
+    // Gọi hàm loadGame một lần duy nhất khi màn hình được tạo
+    LaunchedEffect(Unit) {
+        gameViewModel.loadGame()
+    }
+
     var showResultDialog by remember { mutableStateOf(false) }
     var currentQuestion by remember { mutableStateOf<IndenQuizQuestion?>(null) }
 

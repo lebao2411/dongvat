@@ -30,7 +30,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,13 +37,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.Navigation.AppNavigation
@@ -61,10 +58,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             EndangeredAnimalsTheme {
-                // --- BẮT ĐẦU SỬA LỖI ---
-                // Chỉ gọi một hàm duy nhất là App() làm điểm bắt đầu
                 App()
-                // --- KẾT THÚC SỬA LỖI ---
             }
         }
     }
@@ -72,10 +66,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun App() {
-    // 1. Tạo NavController ở đây, đây là nguồn sự thật duy nhất.
     val navController = rememberNavController()
 
-    // --- Logic lắng nghe trạng thái đăng nhập ---
     DisposableEffect(Unit) {
         val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
             val user = firebaseAuth.currentUser
@@ -102,7 +94,7 @@ fun App() {
         "login",
         "signup_screen",
         "forgotpassword_screen",
-        "result_screen/{query}",
+        "result_screen",
         "animal_screen/{animalId}",
         "changepassword_screen"
     )
@@ -127,7 +119,7 @@ fun App() {
         AppNavigation(
             startDestination = startDestination,
             navController = navController,
-            modifier = Modifier.padding(innerPadding)
+            modifier = if (shouldShowBars) Modifier.padding(innerPadding) else Modifier
         )
     }
 }

@@ -1,52 +1,24 @@
 package com.example.endangeredanimals.Model
 
-import com.google.gson.annotations.SerializedName
+import androidx.annotation.Keep
 
+@Keep
 data class Animal(
-    @SerializedName("animalId")
     var animalID: String? = null,
-
-    @SerializedName("nameVn")
-    val nameVn: String? = null,
-
-    @SerializedName("nameLatin")
-    val nameLatin: String? = null,
-
-    @SerializedName("status")
-    val status: String? = null,
-
-    @SerializedName("class")
-    val animalClass: String? = null,
-
-    @SerializedName("species")
-    val species: String? = null,
-
-    @SerializedName("location")
-    val location: String? = null,
-
-    @SerializedName("popStatus")
-    val popStatus: String? = null,
-
-    @SerializedName("popTrend")
-    val popTrend: String? = null,
-
-    @SerializedName("habitatFeat")
-    val habitatFeat: String? = null,
-
-    @SerializedName("habitatType")
-    val habitatType: String? = null,
-
-    @SerializedName("reproduction")
-    val reproduction: String? = null,
-
-    @SerializedName("diet")
-    val diet: String? = null,
-
-    @SerializedName("threats")
-    val threats: String? = null,
-
-    @SerializedName("imageUrl")
-    val imageUrl: String? = null,
+    var nameVn: String? = null,
+    var nameLatin: String? = null,
+    var status: String? = null,
+    var animalGroup: String? = null,
+    var species: String? = null,
+    var location: String? = null,
+    var popStatus: String? = null,
+    var popTrend: String? = null,
+    var habitatFeat: String? = null,
+    var habitatType: String? = null,
+    var reproduction: String? = null,
+    var diet: String? = null,
+    var threats: String? = null,
+    var imageUrl: String? = null,
 
 ) {
     constructor() : this(

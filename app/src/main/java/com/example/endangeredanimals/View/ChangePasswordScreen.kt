@@ -2,6 +2,7 @@ package com.example.endangeredanimals.View
 
 import android.app.Activity
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -33,6 +34,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.ChangePasswordState
 import com.example.endangeredanimals.ViewModel.ChangePasswordViewModel
+import com.example.endangeredanimals.ui.AppBottomNavBackground
 import com.example.endangeredanimals.ui.AppPrimaryColor
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,6 +78,7 @@ fun ChangePasswordScreen(
         modifier = Modifier
             .fillMaxSize()
             .navigationBarsPadding()
+            .background(AppBottomNavBackground)
     ) {
         TopAppBar(
             title = {  },
@@ -100,7 +103,8 @@ fun ChangePasswordScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(
                     modifier = Modifier.padding(24.dp),

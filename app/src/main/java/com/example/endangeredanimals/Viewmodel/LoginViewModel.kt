@@ -41,7 +41,7 @@ class LoginViewModel : ViewModel() {
             if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                 _loginUIState.value = LoginUIState.Error("Định dạng email không hợp lệ.")
                 return@launch
-            } 
+            }
 
             _loginUIState.value = LoginUIState.Loading
             try {
@@ -100,6 +100,18 @@ class LoginViewModel : ViewModel() {
                 android.util.Log.e("LoginViewModel", "ID Token: ${idToken.take(20)}...")
 
                 _loginUIState.value = LoginUIState.Error("Xác thực Google với Firebase thất bại.")
+            }
+        }
+    }
+
+    fun signOut(googleSignInClient: GoogleSignInClient) {
+        viewModelScope.launch {
+            try {
+                auth.signOut()
+                googleSignInClient.signOut().await()
+                _loginUIState.value = LoginUIState.Idle
+            } catch (e: Exception) {
+                android.util.Log.e("LoginViewModel", "Error signing out: ${e.message}")
             }
         }
     }
