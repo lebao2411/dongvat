@@ -4,8 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.endangeredanimals.Model.Animal
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.FieldPath // <-- Import quan trọng
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.ktx.Firebase
@@ -25,8 +25,20 @@ class FavoriteViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(true)
     val isLoading = _isLoading.asStateFlow()
 
+    private val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+        val user = firebaseAuth.currentUser
+        if (user != null) {
+            // Nếu có người dùng đăng nhập, tải danh sách yêu thích của họ
+            loadFavoriteAnimals()
+        } else {
+            // Nếu người dùng đăng xuất, xóa sạch danh sách
+            _favoriteAnimals.value = emptyList()
+            _isLoading.value = false
+        }
+    }
+
     init {
-        loadFavoriteAnimals()
+        auth.addAuthStateListener(authStateListener)
     }
 
     fun loadFavoriteAnimals() {
@@ -34,7 +46,7 @@ class FavoriteViewModel : ViewModel() {
         if (userId == null) {
             Log.e("FavoriteViewModel", "User is not logged in.")
             _isLoading.value = false
-            _favoriteAnimals.value = emptyList() // Đảm bảo rỗng khi chưa đăng nhập
+            _favoriteAnimals.value = emptyList()
             return
         }
 
@@ -49,7 +61,6 @@ class FavoriteViewModel : ViewModel() {
                 val animalIds = favoriteDocs.documents.mapNotNull { it.getString("animalId") }
 
                 if (animalIds.isNotEmpty()) {
-
                     val animalsList = mutableListOf<Animal>()
                     animalIds.forEach { id ->
                         try {
@@ -57,7 +68,7 @@ class FavoriteViewModel : ViewModel() {
                             if (document.exists()) {
                                 val animal = document.toObject<Animal>()
                                 if (animal != null) {
-                                    animal.animalID = document.id // Gán ID cho model
+                                    animal.animalID = document.id
                                     animalsList.add(animal)
                                 }
                             }
@@ -66,9 +77,7 @@ class FavoriteViewModel : ViewModel() {
                         }
                     }
                     _favoriteAnimals.value = animalsList
-
                 } else {
-                    // Nếu không có ID nào, trả về danh sách rỗng
                     _favoriteAnimals.value = emptyList()
                 }
 
@@ -76,11 +85,10 @@ class FavoriteViewModel : ViewModel() {
                 Log.e("FavoriteViewModel", "Error loading favorite animals", e)
                 _favoriteAnimals.value = emptyList()
             } finally {
-                _isLoading.value = false // Kết thúc trạng thái tải
+                _isLoading.value = false
             }
         }
     }
-
 
     fun toggleFavorite(
         animalId: String,
@@ -124,5 +132,10 @@ class FavoriteViewModel : ViewModel() {
                 onComplete()
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        auth.removeAuthStateListener(authStateListener)
     }
 }

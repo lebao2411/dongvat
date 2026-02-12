@@ -35,7 +35,6 @@ class HomeViewModel : ViewModel() {
             _isLoading.value = true
             try {
                 val querySnapshot = db.collection("animals")
-                    .limit(20)
                     .get()
                     .await()
 

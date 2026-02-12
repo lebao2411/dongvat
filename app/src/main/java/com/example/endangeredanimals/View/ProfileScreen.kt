@@ -2,7 +2,9 @@ package com.example.endangeredanimals.View
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -11,10 +13,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -24,13 +26,16 @@ import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.ProfileState
 import com.example.endangeredanimals.ViewModel.ProfileViewModel
+import com.example.endangeredanimals.ui.AppBackgroundCard
+import com.example.endangeredanimals.ui.AppBottomNavBackground
+import com.example.endangeredanimals.ui.AppButtonChangePW
 import com.example.endangeredanimals.ui.AppGrayBlue
 import com.example.endangeredanimals.ui.AppPrimaryColor
 import com.example.endangeredanimals.ui.AppWarningColor
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 
 @Composable
 fun ProfileScreen(
@@ -71,7 +76,6 @@ fun ProfileScreen(
         }
     }
 
-
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         if (account == null || profileState is ProfileState.Loading) {
             CircularProgressIndicator()
@@ -79,54 +83,45 @@ fun ProfileScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppBackgroundCard)
                 ) {
                     Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = "Thông tin cá nhân",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                        // --- Avatar --- 
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "Avatar",
+                            modifier = Modifier.size(100.dp),
+                            tint = AppPrimaryColor
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // --- User Info ---
+                        Text(
+                            text = account.email,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.Gray
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = userName,
                             onValueChange = { userName = it },
                             label = { Text("Tên người dùng") },
                             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AppPrimaryColor,
-                                focusedLabelColor = AppPrimaryColor,
-                                cursorColor = AppPrimaryColor
-                            ),
                             shape = RoundedCornerShape(16.dp)
                         )
-                        InfoTextField(
-                            value = account.email,
-                            label = "Email",
-                            icon = Icons.Default.Email
-                        )
-                        InfoTextField(
-                            value = "${account.habitatScore} điểm",
-                            label = "Điểm bảo vệ sinh cảnh",
-                            iconPainter = painterResource(id = R.drawable.habitat)
-                        )
-                        InfoTextField(
-                            value = "${account.conservationScore} điểm",
-                            label = "Điểm bảo tồn động vật",
-                            iconPainter = painterResource(id = R.drawable.animal)
-                        )
-
+                        Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = { profileViewModel.updateUserInfo(userName) },
                             modifier = Modifier.fillMaxWidth(),
@@ -137,43 +132,68 @@ fun ProfileScreen(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // --- Scores Section ---
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    ActionButton(
-                        text = "Đổi mật khẩu",
-                        onClick = { navController.navigate("changepassword_screen") },
+                    ScoreCard(
                         modifier = Modifier.weight(1f),
-                        containerColor = Color(0xFFb35715),
-                        contentColor = Color.White
+                        label = "Bảo vệ sinh cảnh",
+                        score = account.habitatScore,
+                        icon = painterResource(id = R.drawable.habitat)
                     )
-
-                    ActionButton(
-                        text = "Xóa tài khoản",
-                        onClick = { profileViewModel.onOpenDeleteDialog() },
+                    ScoreCard(
                         modifier = Modifier.weight(1f),
-                        containerColor = AppWarningColor,
-                        contentColor = Color.White
+                        label = "Bảo tồn động vật",
+                        score = account.conservationScore,
+                        icon = painterResource(id = R.drawable.animal)
                     )
                 }
 
-                Button(
-                    onClick = {
-                        profileViewModel.signOut()
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    },
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppGrayBlue)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.ExitToApp,
-                        contentDescription = "Đăng xuất",
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                    Text("Đăng xuất")
+                    Button(
+                        onClick = { navController.navigate("changepassword_screen") },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppButtonChangePW,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Đổi mật khẩu")
+                    }
+
+                    Button(
+                        onClick = {
+                            profileViewModel.signOut(googleSignInClient)
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppGrayBlue)
+                    ) {
+                        Text("Đăng xuất")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = { profileViewModel.onOpenDeleteDialog() },
+                    colors = ButtonDefaults.buttonColors(containerColor = AppWarningColor),
+                    contentPadding = PaddingValues(horizontal = 32.dp)
+                ) {
+                    Text("Xóa tài khoản")
                 }
             }
         }
@@ -205,67 +225,42 @@ fun ProfileScreen(
 }
 
 @Composable
-fun InfoTextField(value: String, label: String, icon: ImageVector) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = {  },
-        label = { Text(label) },
-        leadingIcon = { Icon(icon, contentDescription = null) },
-        modifier = Modifier.fillMaxWidth(),
-        enabled = false,
-        colors = OutlinedTextFieldDefaults.colors(
-            disabledTextColor = MaterialTheme.colorScheme.onSurface,
-            disabledBorderColor = MaterialTheme.colorScheme.outline,
-            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
-        shape = RoundedCornerShape(16.dp)
-    )
-}
-
-@Composable
-fun InfoTextField(value: String, label: String, iconPainter: Painter) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { },
-        label = { Text(label) },
-        leadingIcon = {
-            Icon(
-                painter = iconPainter,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp)
-            )
-        },
-        modifier = Modifier
-            .fillMaxWidth(),
-        enabled = false,
-        colors = OutlinedTextFieldDefaults.colors(
-            disabledTextColor = MaterialTheme.colorScheme.onSurface,
-            disabledBorderColor = MaterialTheme.colorScheme.outline,
-            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
-        shape = RoundedCornerShape(16.dp)
-    )
-}
-
-@Composable
-fun ActionButton(
-    text: String,
-    onClick: () -> Unit,
+fun ScoreCard(
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.secondary,
-    contentColor: Color = MaterialTheme.colorScheme.onSecondary
+    label: String,
+    score: Int,
+    icon: Painter
 ) {
-    Button(
-        onClick = onClick,
+    Card(
         modifier = modifier,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor
-        )
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = AppBackgroundCard)
     ) {
-        Text(text)
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                painter = icon,
+                contentDescription = label,
+                modifier = Modifier.size(32.dp),
+                tint = AppPrimaryColor
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "$score điểm",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            )
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                color = Color.Gray,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 

@@ -120,8 +120,18 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
-    fun signOut() {
-        auth.signOut()
+    fun signOut(googleSignInClient: GoogleSignInClient) {
+        viewModelScope.launch {
+            try {
+                auth.signOut()
+                googleSignInClient.signOut().await()
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error signing out", e)
+                 withContext(Dispatchers.Main) {
+                    _profileState.value = ProfileState.Error("Lỗi khi đăng xuất: ${e.message}")
+                }
+            }
+        }
     }
 
     fun deleteAccount(googleSignInClient: GoogleSignInClient) {

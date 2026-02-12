@@ -3,16 +3,22 @@
 package com.example.endangeredanimals.View
 
 import android.annotation.SuppressLint
+import android.util.Log
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -27,6 +33,7 @@ import coil.request.ImageRequest
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.AnimalDetailViewModel
 import com.example.endangeredanimals.ViewModel.FavoriteViewModel
+import com.example.endangeredanimals.ui.AppBackgroundCard
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -43,6 +50,7 @@ fun AnimalScreen(
     val favoriteAnimals by favoriteViewModel.favoriteAnimals.collectAsState()
 
     val isFavorite = favoriteAnimals.any { it.animalID == animalId }
+    var showStatusDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(key1 = animalId) {
         animalDetailViewModel.loadAnimalDetails(animalId)
@@ -54,6 +62,32 @@ fun AnimalScreen(
         onDispose {
             systemUiController.isSystemBarsVisible = true
         }
+    }
+
+    if (showStatusDialog) {
+        AlertDialog(
+            onDismissRequest = { showStatusDialog = false },
+            title = { Text("Chú Giải Tình Trạng Bảo Tồn") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.status_animal),
+                        contentDescription = "Bảng chú giải các cấp độ bảo tồn",
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showStatusDialog = false }) {
+                    Text("Đóng")
+                }
+            },
+            containerColor = AppBackgroundCard
+        )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -70,45 +104,60 @@ fun AnimalScreen(
                             .data(imageModel)
                             .crossfade(true)
                             .build(),
-                        placeholder = painterResource(R.drawable.avata),
-                        error = painterResource(R.drawable.save_animal),
+                        placeholder = painterResource(R.drawable.loading),
+                        error = painterResource(R.drawable.noimage),
                         contentDescription = loadedAnimal.nameVn,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(1f / 1f)
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 
-                Button(
-                    onClick = {
-                        favoriteViewModel.toggleFavorite(
-                            animalId = animalId,
-                            isCurrentlyFavorite = isFavorite,
-                            onComplete = {
-                                favoriteViewModel.loadFavoriteAnimals()
-                            }
-                        )
-                    },
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 12.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isFavorite) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = if (isFavorite) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
-                    )
+                        .padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = null,
-                        modifier = Modifier.size(ButtonDefaults.IconSize)
-                    )
-                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                    Text(
-                        text = if (isFavorite) "Đã yêu thích" else "Yêu thích",
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    OutlinedButton(
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier.weight(0.5f),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Thoát",
+                            modifier = Modifier.size(ButtonDefaults.IconSize)
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            favoriteViewModel.toggleFavorite(
+                                animalId = animalId,
+                                isCurrentlyFavorite = isFavorite,
+                                onComplete = {
+                                    favoriteViewModel.loadFavoriteAnimals()
+                                }
+                            )
+                        },
+                        modifier = Modifier.weight(1.5f),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isFavorite) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = if (isFavorite) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize)
+                        )
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text(
+                            text = if (isFavorite) "Đã yêu thích" else "Yêu thích",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
                 Column(
@@ -127,12 +176,25 @@ fun AnimalScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Tình trạng: ${loadedAnimal.status ?: "Không xác định"}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error
-                    )
+
+                    Row(
+                        modifier = Modifier.clickable { showStatusDialog = true },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Tình trạng: ${loadedAnimal.status ?: "Không xác định"}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Xem chú giải",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -142,7 +204,7 @@ fun AnimalScreen(
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    InfoRow("Lớp", loadedAnimal.animalClass ?: "Chưa có thông tin")
+                    InfoRow("Lớp", loadedAnimal.animalGroup ?: "Chưa có thông tin")
                     InfoRow("Loài (Bộ)", loadedAnimal.species ?: "Chưa có thông tin")
                     InfoRow("Phân bố", loadedAnimal.location ?: "Chưa có thông tin")
                     InfoRow("Hiện trạng quần thể", loadedAnimal.popStatus ?: "Chưa có thông tin")

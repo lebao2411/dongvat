@@ -1,9 +1,9 @@
 package com.example.endangeredanimals.View
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,7 +22,7 @@ import com.example.endangeredanimals.ViewModel.FavoriteViewModel
 @Composable
 fun FavoriteScreen(
     navController: NavController,
-    favoriteViewModel: FavoriteViewModel = viewModel() // Khởi tạo ViewModel
+    favoriteViewModel: FavoriteViewModel = viewModel() 
 ) {
     // Lấy trạng thái từ ViewModel
     val favoriteAnimals by favoriteViewModel.favoriteAnimals.collectAsState()
@@ -54,10 +54,11 @@ fun FavoriteScreen(
                     fontSize = 20.sp
                 )
 
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                LazyVerticalStaggeredGrid(
+                    columns = StaggeredGridCells.Fixed(2),
+                    verticalItemSpacing = 8.dp,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
                     items(favoriteAnimals, key = { it.animalID ?: it.hashCode() }) { animal ->
                         AnimalGridItem(
