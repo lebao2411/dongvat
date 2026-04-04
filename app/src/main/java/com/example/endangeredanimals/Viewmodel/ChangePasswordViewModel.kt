@@ -2,14 +2,13 @@ package com.example.endangeredanimals.ViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.EmailAuthProvider
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
+import com.example.endangeredanimals.Network.SupabaseInstance
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-    
+
 sealed class ChangePasswordState {
     object Idle : ChangePasswordState()
     object Loading : ChangePasswordState()
@@ -19,12 +18,11 @@ sealed class ChangePasswordState {
 
 class ChangePasswordViewModel : ViewModel() {
 
-    private val auth = Firebase.auth
+    private val client = SupabaseInstance.client
 
     private val _changePasswordState = MutableStateFlow<ChangePasswordState>(ChangePasswordState.Idle)
     val changePasswordState = _changePasswordState.asStateFlow()
 
-    //xử lý thay đổi mật khẩu
     fun changePassword(oldPass: String, newPass: String, confirmNewPass: String) {
         viewModelScope.launch {
             if (oldPass.isBlank() || newPass.isBlank() || confirmNewPass.isBlank()) {
@@ -46,23 +44,30 @@ class ChangePasswordViewModel : ViewModel() {
 
             _changePasswordState.value = ChangePasswordState.Loading
 
-            val user = auth.currentUser
-            if (user == null || user.email == null) {
+            val currentUser = client.auth.currentSessionOrNull()?.user
+            val email = currentUser?.email
+
+            if (currentUser == null || email == null) {
                 _changePasswordState.value = ChangePasswordState.Error("Không tìm thấy người dùng. Vui lòng đăng nhập lại.")
                 return@launch
             }
 
             try {
-                val credential = EmailAuthProvider.getCredential(user.email!!, oldPass)
-                user.reauthenticate(credential).await()
+                // Bước 1: Xác thực mật khẩu cũ bằng cách thử đăng nhập lại
+                client.auth.signInWith(Email) {
+                    this.email = email
+                    this.password = oldPass
+                }
             } catch (e: Exception) {
                 _changePasswordState.value = ChangePasswordState.Error("Mật khẩu cũ không chính xác.")
                 return@launch
             }
 
-            // cập nhật mật khẩu
+            // Bước 2: Cập nhật mật khẩu mới
             try {
-                user.updatePassword(newPass).await()
+                client.auth.updateUser {
+                    password = newPass
+                }
                 _changePasswordState.value = ChangePasswordState.Success("Đổi mật khẩu thành công!")
             } catch (e: Exception) {
                 val errorMessage = "Đã xảy ra lỗi khi cập nhật mật khẩu: ${e.message}"
@@ -71,10 +76,6 @@ class ChangePasswordViewModel : ViewModel() {
         }
     }
 
-
-    /**
-     * Đặt lại trạng thái sau khi hiển thị thông báo
-     */
     fun clearState() {
         _changePasswordState.value = ChangePasswordState.Idle
     }

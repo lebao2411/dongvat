@@ -15,6 +15,9 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +51,10 @@ fun AnimalScreen(
 
     val animal by animalDetailViewModel.animal.collectAsState()
     val favoriteAnimals by favoriteViewModel.favoriteAnimals.collectAsState()
+    val isRefreshing by animalDetailViewModel.isRefreshing.collectAsState()
+    val isLoading by animalDetailViewModel.isLoading.collectAsState()
+    
+    val pullToRefreshState = rememberPullToRefreshState()
 
     val isFavorite = favoriteAnimals.any { it.animalID == animalId }
     var showStatusDialog by remember { mutableStateOf(false) }
@@ -90,135 +97,162 @@ fun AnimalScreen(
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        animal?.let { loadedAnimal ->
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Box {
-                    val imageModel = if (loadedAnimal.imageUrl.isNullOrBlank()) {
-                        R.drawable.protect_animals
-                    } else {
-                        loadedAnimal.imageUrl
-                    }
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(imageModel)
-                            .crossfade(true)
-                            .build(),
-                        placeholder = painterResource(R.drawable.loading),
-                        error = painterResource(R.drawable.noimage),
-                        contentDescription = loadedAnimal.nameVn,
-                        contentScale = ContentScale.FillWidth,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier.weight(0.5f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Thoát",
-                            modifier = Modifier.size(ButtonDefaults.IconSize)
+    PullToRefreshBox(
+        state = pullToRefreshState,
+        isRefreshing = isRefreshing,
+        onRefresh = { animalDetailViewModel.refresh(animalId) },
+        modifier = Modifier.fillMaxSize(),
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                state = pullToRefreshState,
+                isRefreshing = isRefreshing,
+                containerColor = Color.White,
+                color = Color(0xFF37ab3c),
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
+    ) {
+        if (isLoading && animal == null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color(0xFF37ab3c))
+            }
+        } else {
+            animal?.let { loadedAnimal ->
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Box {
+                        val imageModel = if (loadedAnimal.imageUrl.isNullOrBlank()) {
+                            R.drawable.protect_animals
+                        } else {
+                            loadedAnimal.imageUrl
+                        }
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(imageModel)
+                                .crossfade(true)
+                                .build(),
+                            placeholder = painterResource(R.drawable.loading),
+                            error = painterResource(R.drawable.noimage),
+                            contentDescription = loadedAnimal.nameVn,
+                            contentScale = ContentScale.FillWidth,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 
-                    Button(
-                        onClick = {
-                            favoriteViewModel.toggleFavorite(
-                                animalId = animalId,
-                                isCurrentlyFavorite = isFavorite,
-                                onComplete = {
-                                    favoriteViewModel.loadFavoriteAnimals()
-                                }
-                            )
-                        },
-                        modifier = Modifier.weight(1.5f),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isFavorite) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = if (isFavorite) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = null,
-                            modifier = Modifier.size(ButtonDefaults.IconSize)
-                        )
-                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                        Text(
-                            text = if (isFavorite) "Đã yêu thích" else "Yêu thích",
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = loadedAnimal.nameVn ?: "Chưa có tên tiếng Việt",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                    Spacer(
+                        modifier = Modifier
+                            .height(5.dp)
+                            .fillMaxWidth()
                     )
-                    Text(
-                        text = loadedAnimal.nameLatin ?: "Chưa có tên khoa học",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontStyle = FontStyle.Italic,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
-                        modifier = Modifier.clickable { showStatusDialog = true },
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { navController.popBackStack() },
+                            modifier = Modifier.weight(0.5f),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Thoát",
+                                modifier = Modifier.size(ButtonDefaults.IconSize)
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                favoriteViewModel.toggleFavorite(
+                                    animalId = animalId,
+                                    isCurrentlyFavorite = isFavorite,
+                                    onComplete = {
+                                        favoriteViewModel.loadFavoriteAnimals()
+                                    }
+                                )
+                            },
+                            modifier = Modifier.weight(1.5f),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isFavorite) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = if (isFavorite) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        ) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize)
+                            )
+                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                            Text(
+                                text = if (isFavorite) "Đã yêu thích" else "Yêu thích",
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Tình trạng: ${loadedAnimal.status ?: "Không xác định"}",
+                            text = loadedAnimal.nameVn ?: "Chưa có tên tiếng Việt",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = loadedAnimal.nameLatin ?: "Chưa có tên khoa học",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.error
+                            fontStyle = FontStyle.Italic,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = "Xem chú giải",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(16.dp)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.clickable { showStatusDialog = true },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Tình trạng: ${loadedAnimal.status ?: "Không xác định"}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Xem chú giải",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Thông Tin Chi Tiết",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(bottom = 8.dp)
                         )
+                        InfoRow("Tên khác", loadedAnimal.otherNames ?: "Chưa có thông tin")
+                        InfoRow("Lớp", loadedAnimal.animalGroup ?: "Chưa có thông tin")
+                        InfoRow("Loài (Bộ)", loadedAnimal.species ?: "Chưa có thông tin")
+                        InfoRow("Phân bố", loadedAnimal.location ?: "Chưa có thông tin")
+                        InfoRow("Hiện trạng quần thể", loadedAnimal.popStatus ?: "Chưa có thông tin")
+                        InfoRow("Xu hướng quần thể", loadedAnimal.popTrend ?: "Chưa có thông tin")
+                        InfoRow("Đặc điểm sinh cảnh", loadedAnimal.habitatFeat ?: "Chưa có thông tin")
+                        InfoRow("Loại sinh cảnh", loadedAnimal.habitatType ?: "Chưa có thông tin")
+                        InfoRow("Sinh sản", loadedAnimal.reproduction ?: "Chưa có thông tin")
+                        InfoRow("Thức ăn", loadedAnimal.diet ?: "Chưa có thông tin")
+                        InfoRow("Mối đe dọa", loadedAnimal.threats ?: "Chưa có thông tin")
                     }
                 }
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Thông Tin Chi Tiết",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    InfoRow("Lớp", loadedAnimal.animalGroup ?: "Chưa có thông tin")
-                    InfoRow("Loài (Bộ)", loadedAnimal.species ?: "Chưa có thông tin")
-                    InfoRow("Phân bố", loadedAnimal.location ?: "Chưa có thông tin")
-                    InfoRow("Hiện trạng quần thể", loadedAnimal.popStatus ?: "Chưa có thông tin")
-                    InfoRow("Xu hướng quần thể", loadedAnimal.popTrend ?: "Chưa có thông tin")
-                    InfoRow("Đặc điểm sinh cảnh", loadedAnimal.habitatFeat ?: "Chưa có thông tin")
-                    InfoRow("Loại sinh cảnh", loadedAnimal.habitatType ?: "Chưa có thông tin")
-                    InfoRow("Sinh sản", loadedAnimal.reproduction ?: "Chưa có thông tin")
-                    InfoRow("Thức ăn", loadedAnimal.diet ?: "Chưa có thông tin")
-                    InfoRow("Mối đe dọa", loadedAnimal.threats ?: "Chưa có thông tin")
+            } ?: run {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Không tìm thấy thông tin động vật.")
                 }
-            }
-        } ?: run {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
             }
         }
     }

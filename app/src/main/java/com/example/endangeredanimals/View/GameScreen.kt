@@ -1,79 +1,126 @@
 package com.example.endangeredanimals.View
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
 
 @Composable
-// Bước 1: Thêm NavController làm tham số
 fun GameScreen(navController: NavController) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        GameButton(
-            imageRes = R.drawable.button_habitat,
-            onClick = { /* TODO: Điều hướng đến Game 1 */ }
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically)
+        ) {
+            Text(
+                text = "Chọn Thể Loại Trò Chơi",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
 
-        Spacer(modifier = Modifier.height(24.dp))
+            // Game 1: Nhận diện động vật (Game cũ)
+            GameTypeCard(
+                title = "Thử Tài Nhận Diện",
+                description = "Tìm đúng loài vật qua đặc điểm",
+                imageRes = R.drawable.button_conservation,
+                onClick = { navController.navigate("inden_game") }
+            )
 
-        GameButton(
-            imageRes = R.drawable.button_conservation,
-            // Bước 2: Thay đổi hành động onClick để điều hướng đến "inden_game"
-            onClick = { navController.navigate("inden_game") }
-        )
+            // Game 2: Cốt truyện sinh tồn (Game mới)
+            GameTypeCard(
+                title = "Hành Trình Sinh Tồn",
+                description = "Nhập vai và đưa ra lựa chọn sống còn",
+                imageRes = R.drawable.story_game_logo,
+                onClick = { navController.navigate("story_selection") }
+            )
+        }
     }
 }
 
 @Composable
-fun GameButton(
+fun GameTypeCard(
+    title: String,
+    description: String,
     imageRes: Int,
     onClick: () -> Unit
 ) {
-    Button(
-        onClick = onClick,
+    Card(
         modifier = Modifier
-            .fillMaxWidth(0.9f)
-            .height(150.dp),
-        shape = RoundedCornerShape(20.dp),
-        contentPadding = PaddingValues(0.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+            .fillMaxWidth()
+            .height(180.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(8.dp)
     ) {
-        Image(
-            painter = painterResource(id = imageRes),
-            contentDescription = "Game Button",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(20.dp))
-        )
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Ảnh nền tràn toàn bộ Card
+            Image(
+                painter = painterResource(id = imageRes),
+                contentDescription = title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Lớp phủ Gradient để chữ nổi bật (Hiệu ứng điện ảnh)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                            startY = 100f
+                        )
+                    )
+            )
+
+            // Nội dung chữ
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = description,
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 14.sp
+                )
+            }
+        }
     }
 }
 
-// Hàm Preview để xem trước giao diện
 @Preview(showBackground = true)
 @Composable
 fun GameScreenPreview() {
-    // Tạo một NavController giả cho Preview
-    val navController = rememberNavController()
-    GameScreen(navController = navController)
+    GameScreen(navController = rememberNavController())
 }
-

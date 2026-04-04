@@ -8,14 +8,23 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -25,19 +34,9 @@ import coil.request.ImageRequest
 import com.example.endangeredanimals.Model.Animal
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.ResultViewModel
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.input.ImeAction
 import com.example.endangeredanimals.ui.AppBackgroundCard
 import com.example.endangeredanimals.ui.AppPrimaryColor
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,18 +47,17 @@ fun ResultScreen(
     val searchResults by resultViewModel.searchResults.collectAsState()
     val isLoading by resultViewModel.isLoading.collectAsState()
     val message by resultViewModel.searchMessage.collectAsState()
+    val searchQuery by resultViewModel.searchQuery.collectAsState()
 
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
-    var text by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-    }
-
-    LaunchedEffect(text) {
-        kotlinx.coroutines.delay(300)
-        resultViewModel.searchAnimals(text)
+    // Tự động tìm kiếm khi searchQuery thay đổi
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.isNotEmpty()) {
+            delay(300)
+            resultViewModel.searchAnimals(searchQuery)
+        }
     }
 
     Column(
@@ -67,7 +65,7 @@ fun ResultScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
     ) {
-        // Thanh tìm kiếm tùy chỉnh
+        // Thanh tìm kiếm
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -84,8 +82,8 @@ fun ResultScreen(
                 )
             }
             TextField(
-                value = text,
-                onValueChange = { text = it },
+                value = searchQuery,
+                onValueChange = { resultViewModel.updateSearchQuery(it) },
                 modifier = Modifier
                     .weight(1f)
                     .focusRequester(focusRequester),
@@ -94,7 +92,7 @@ fun ResultScreen(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface, // Đổi màu nền ô text
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                     disabledContainerColor = MaterialTheme.colorScheme.surface,
                     focusedIndicatorColor = Color.Transparent,
@@ -105,10 +103,9 @@ fun ResultScreen(
             )
         }
 
-        // Nội dung màn hình
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = Color(0xFF37ab3c))
             }
         } else if (searchResults.isNotEmpty()) {
             LazyVerticalStaggeredGrid(

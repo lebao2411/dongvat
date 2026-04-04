@@ -5,26 +5,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.endangeredanimals.Model.Account
+import com.example.endangeredanimals.Network.SupabaseInstance
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
-/**
- * Lớp đại diện cho các trạng thái có thể có của giao diện màn hình đăng ký.
- */
 sealed class SignUpUIState {
-    object Idle : SignUpUIState()      // Trạng thái ban đầu
-    object Loading : SignUpUIState()   // Trạng thái đang xử lý đăng ký
-    object Success : SignUpUIState()   // Trạng thái đăng ký thành công
-    data class Error(val message: String) : SignUpUIState() // Trạng thái có lỗi
+    object Idle : SignUpUIState()
+    object Loading : SignUpUIState()
+    object Success : SignUpUIState()
+    data class Error(val message: String) : SignUpUIState()
 }
 
-/**
- * ViewModel cho màn hình Đăng ký.
- */
 class SignUpViewModel : ViewModel() {
 
     var email by mutableStateOf("")
@@ -34,13 +30,10 @@ class SignUpViewModel : ViewModel() {
     var confirmPassword by mutableStateOf("")
         private set
 
-    // --- State cho trạng thái của giao diện (UI) ---
     private val _signUpUIState = MutableStateFlow<SignUpUIState>(SignUpUIState.Idle)
     val signUpUIState = _signUpUIState.asStateFlow()
 
-    // Lấy instance của Firebase Auth và Firestore
-    private val auth = FirebaseAuth.getInstance()
-    private val db = FirebaseFirestore.getInstance()
+    private val client = SupabaseInstance.client
 
     fun onEmailChange(newValue: String) {
         email = newValue
@@ -54,7 +47,7 @@ class SignUpViewModel : ViewModel() {
         confirmPassword = newValue
     }
 
-    fun onSignUpClick(userName: String) { // Thêm userName vào đây
+    fun onSignUpClick(userName: String) {
         if (email.isBlank() || password.isBlank() || confirmPassword.isBlank() || userName.isBlank()) {
             _signUpUIState.value = SignUpUIState.Error("Vui lòng nhập đầy đủ thông tin.")
             return
@@ -75,29 +68,30 @@ class SignUpViewModel : ViewModel() {
         viewModelScope.launch {
             _signUpUIState.value = SignUpUIState.Loading
             try {
-                val authResult = auth.createUserWithEmailAndPassword(email, password).await()
+                // 1. SUPABASE: Tạo tài khoản Auth
+                val user = client.auth.signUpWith(Email) {
+                    this.email = this@SignUpViewModel.email
+                    this.password = this@SignUpViewModel.password
+                }
 
-                authResult.user?.let { firebaseUser ->
-
-                    val accountData = hashMapOf(
-                        "userName" to userName,
-                        "email" to firebaseUser.email,
-                        "habitatScore" to 0,
-                        "conservationScore" to 0
+                if (user != null) {
+                    // 2. SUPABASE: Lưu thông tin bổ sung vào bảng accounts
+                    val account = Account(
+                        userId = user.id,
+                        userName = userName,
+                        email = user.email ?: "",
+                        habitatScore = 0,
+                        conservationScore = 0
                     )
-
-                    //    Sử dụng UID của người dùng làm ID cho document
-                    db.collection("accounts").document(firebaseUser.uid).set(accountData).await()
-
+                    client.from("accounts").insert(account)
                     _signUpUIState.value = SignUpUIState.Success
-
-                } ?: run {
-                    _signUpUIState.value = SignUpUIState.Error("Không thể lấy thông tin người dùng sau khi tạo.")
+                } else {
+                    _signUpUIState.value = SignUpUIState.Error("Đăng ký thành công nhưng không lấy được thông tin người dùng.")
                 }
 
             } catch (e: Exception) {
                 val errorMessage = when {
-                    "email-already-in-use" in (e.message ?: "") -> "Email này đã được sử dụng."
+                    "already registered" in (e.message ?: "") -> "Email này đã được sử dụng."
                     else -> e.message ?: "Đã xảy ra lỗi không xác định."
                 }
                 _signUpUIState.value = SignUpUIState.Error(errorMessage)
@@ -105,9 +99,6 @@ class SignUpViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Đặt lại trạng thái lỗi về Idle sau khi thông báo lỗi đã được hiển thị.
-     */
     fun clearErrorState() {
         if (_signUpUIState.value is SignUpUIState.Error) {
             _signUpUIState.value = SignUpUIState.Idle

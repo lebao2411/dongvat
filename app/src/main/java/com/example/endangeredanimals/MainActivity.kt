@@ -1,7 +1,6 @@
 package com.example.endangeredanimals
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -28,11 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,15 +37,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.Navigation.AppNavigation
+import com.example.endangeredanimals.Network.SupabaseInstance
 import com.example.endangeredanimals.ui.AppBottomNavBackground
 import com.example.endangeredanimals.ui.AppPrimaryColor
 import com.example.endangeredanimals.ui.EndangeredAnimalsTheme
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,60 +63,58 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun App() {
     val navController = rememberNavController()
+    val client = SupabaseInstance.client
+    
+    val sessionStatus by client.auth.sessionStatus.collectAsState()
+    var startDestination by remember { mutableStateOf<String?>(null) }
 
-    DisposableEffect(Unit) {
-        val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-            val user = firebaseAuth.currentUser
-            if (user == null && navController.currentDestination?.route != "login") {
-                Log.d("AuthStateListener", "User is signed out or token is invalid. Navigating to login.")
-                // Điều hướng về màn hình login và xóa hết các màn hình cũ
-                navController.navigate("login") {
-                    popUpTo(0) { inclusive = true }
-                }
-            }
-        }
-        Firebase.auth.addAuthStateListener(authStateListener)
-        onDispose {
-            Firebase.auth.removeAuthStateListener(authStateListener)
+    LaunchedEffect(sessionStatus) {
+        startDestination = when (sessionStatus) {
+            is SessionStatus.Authenticated -> "home"
+            is SessionStatus.NotAuthenticated -> "login"
+            else -> null
         }
     }
 
-    val startDestination by remember { mutableStateOf(if (Firebase.auth.currentUser != null) "home" else "login") }
+    if (startDestination != null) {
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = navBackStackEntry?.destination?.route
 
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-
-    val fullScreenRoutes = listOf(
-        "login",
-        "signup_screen",
-        "forgotpassword_screen",
-        "result_screen",
-        "animal_screen/{animalId}",
-        "changepassword_screen"
-    )
-    val shouldShowBars = currentRoute !in fullScreenRoutes
-
-    Scaffold(
-        topBar = {
-            if (shouldShowBars) {
-                MainTopAppBar(
-                    onSearchNavigate = {
-                        navController.navigate("result_screen")
-                    }
-                )
-            }
-        },
-        bottomBar = {
-            if (shouldShowBars) {
-                MainBottomBar(navController = navController)
-            }
-        }
-    ) { innerPadding ->
-        AppNavigation(
-            startDestination = startDestination,
-            navController = navController,
-            modifier = if (shouldShowBars) Modifier.padding(innerPadding) else Modifier
+        val fullScreenRoutes = listOf(
+            "login",
+            "signup_screen",
+            "forgotpassword_screen",
+            "result_screen",
+            "animal_screen/{animalId}",
+            "changepassword_screen"
         )
+        // Kiểm tra logic hiển thị bar chặt chẽ hơn
+        val shouldShowBars = currentRoute != null && currentRoute !in fullScreenRoutes
+
+        Scaffold(
+            topBar = {
+                if (shouldShowBars) {
+                    MainTopAppBar(
+                        onSearchNavigate = {
+                            if (currentRoute != "result_screen") {
+                                navController.navigate("result_screen")
+                            }
+                        }
+                    )
+                }
+            },
+            bottomBar = {
+                if (shouldShowBars) {
+                    MainBottomBar(navController = navController)
+                }
+            }
+        ) { innerPadding ->
+            AppNavigation(
+                startDestination = startDestination!!,
+                navController = navController,
+                modifier = if (shouldShowBars) Modifier.padding(innerPadding) else Modifier
+            )
+        }
     }
 }
 
@@ -203,10 +197,17 @@ private fun MainBottomBar(navController: NavController) {
             NavigationBarItem(
                 selected = isSelected,
                 onClick = {
-                    navController.navigate(route) {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+                    if (currentRoute != route) {
+                        navController.navigate(route) {
+                            // Quay về start destination của graph để tránh tích tụ stack
+                            popUpTo(navController.graph.findStartDestination().id) { 
+                                saveState = true 
+                            }
+                            // Tránh tạo nhiều bản sao của cùng một đích đến
+                            launchSingleTop = true
+                            // Khôi phục trạng thái khi chọn lại tab cũ
+                            restoreState = true
+                        }
                     }
                 },
                 icon = {

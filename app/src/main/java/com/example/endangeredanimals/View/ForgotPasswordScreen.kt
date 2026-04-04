@@ -17,8 +17,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.copy
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -53,7 +51,7 @@ fun ForgotPasswordScreen(
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
     var isConfirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
 
-    // State từ ViewModel
+    // State từ ViewModel (Sử dụng package viết thường)
     val state by forgotPasswordViewModel.forgotPasswordState.collectAsState()
     val context = LocalContext.current
 
@@ -74,7 +72,6 @@ fun ForgotPasswordScreen(
             }
             is ForgotPasswordState.OtpVerified -> {
                 Toast.makeText(context, currentState.message, Toast.LENGTH_LONG).show()
-                // Không cần clearState() ngay để isOtpVerified = true
             }
             is ForgotPasswordState.Success -> {
                 Toast.makeText(context, currentState.message, Toast.LENGTH_LONG).show()
@@ -102,7 +99,6 @@ fun ForgotPasswordScreen(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = Color.Transparent.toArgb()
             WindowCompat.setDecorFitsSystemWindows(window, false)
         }
     }
@@ -160,7 +156,7 @@ fun ForgotPasswordScreen(
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                             shape = RoundedCornerShape(16.dp),
-                            readOnly = isOtpVerified // Không cho sửa email sau khi đã xác thực
+                            readOnly = isOtpVerified
                         )
 
                         // --- Trường nhập OTP và nút Gửi/Xác nhận mã ---
@@ -179,7 +175,6 @@ fun ForgotPasswordScreen(
                                 shape = RoundedCornerShape(16.dp),
                                 readOnly = isOtpVerified
                             )
-                            // Nút này thay đổi chức năng: Gửi mã -> Xác thực mã
                             Button(
                                 onClick = {
                                     if (!isOtpVerified) {
@@ -224,7 +219,7 @@ fun ForgotPasswordScreen(
                             visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             shape = RoundedCornerShape(16.dp),
-                            enabled = isOtpVerified, // Chỉ bật khi đã xác thực OTP
+                            enabled = isOtpVerified,
                             trailingIcon = {
                                 IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                                     Icon(painterResource(if (isPasswordVisible) R.drawable.visibility else R.drawable.visibility_off), "Toggle password visibility")

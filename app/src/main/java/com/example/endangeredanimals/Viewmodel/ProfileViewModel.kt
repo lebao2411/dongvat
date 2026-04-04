@@ -7,17 +7,14 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.endangeredanimals.Model.Account
+import com.example.endangeredanimals.Network.SupabaseInstance
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.firestore.ktx.toObject
-import com.google.firebase.ktx.Firebase
-import kotlinx.coroutines.Dispatchers
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 
 sealed class ProfileState {
     object Idle : ProfileState()
@@ -28,8 +25,7 @@ sealed class ProfileState {
 
 class ProfileViewModel : ViewModel() {
 
-    private val auth = Firebase.auth
-    private val db = Firebase.firestore
+    private val client = SupabaseInstance.client
 
     var accountState by mutableStateOf<Account?>(null)
         private set
@@ -37,85 +33,86 @@ class ProfileViewModel : ViewModel() {
     private val _profileState = MutableStateFlow<ProfileState>(ProfileState.Idle)
     val profileState = _profileState.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing = _isRefreshing.asStateFlow()
+
     var showDeleteConfirmation by mutableStateOf(false)
         private set
 
     init {
-        // Đổi tên hàm để rõ ràng hơn
         fetchOrCreateUserData()
     }
 
+    fun refresh() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            fetchUserDataFromSupabase()
+            delay(500)
+            _isRefreshing.value = false
+        }
+    }
+
     fun fetchOrCreateUserData() {
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                _profileState.value = ProfileState.Loading
-            }
+        viewModelScope.launch {
+            _profileState.value = ProfileState.Loading
+            fetchUserDataFromSupabase()
+        }
+    }
 
-            val user = auth.currentUser
-            if (user == null) {
-                withContext(Dispatchers.Main) {
-                    _profileState.value = ProfileState.Error("Không tìm thấy người dùng. Vui lòng đăng nhập lại.")
-                }
-                return@launch
-            }
+    private suspend fun fetchUserDataFromSupabase() {
+        val user = client.auth.currentSessionOrNull()?.user
+        if (user == null) {
+            _profileState.value = ProfileState.Error("Vui lòng đăng nhập lại.")
+            return
+        }
 
-            try {
-                // Document ID chính là UID của người dùng
-                val documentId = user.uid
-                val docRef = db.collection("accounts").document(documentId)
-                val documentSnapshot = docRef.get().await()
-
-                if (documentSnapshot.exists()) {
-                    Log.d("ProfileViewModel", "Document người dùng đã tồn tại. Đang đọc...")
-                    val account = documentSnapshot.toObject<Account>()
-                    withContext(Dispatchers.Main) {
-                        accountState = account
-                        _profileState.value = ProfileState.Idle
-                    }
-                } else {
-                    Log.d("ProfileViewModel", "Document người dùng chưa tồn tại. Đang tạo mới...")
-                    val newAccount = Account(
-                        userName = user.displayName ?: "Người dùng mới", // Lấy tên từ Google hoặc đặt tên mặc định
-                        email = user.email ?: ""
-                    )
-                    // Ghi document mới lên Firestore
-                    docRef.set(newAccount).await()
-                    Log.d("ProfileViewModel", "Tạo document mới thành công!")
-                    withContext(Dispatchers.Main) {
-                        accountState = newAccount
-                        _profileState.value = ProfileState.Idle
+        try {
+            val result = client.from("accounts")
+                .select {
+                    filter {
+                        eq("userId", user.id)
                     }
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Log.e("ProfileViewModel", "Lỗi khi tải hoặc tạo dữ liệu người dùng: ", e)
-                    _profileState.value = ProfileState.Error("Lỗi khi xử lý dữ liệu: ${e.message}")
-                }
+                .decodeSingleOrNull<Account>()
+
+            if (result != null) {
+                accountState = result
+                _profileState.value = ProfileState.Idle
+            } else {
+                // Tạo mới nếu chưa có
+                val newAccount = Account(
+                    userId = user.id,
+                    userName = user.userMetadata?.get("full_name")?.toString() ?: "Người dùng mới",
+                    email = user.email ?: ""
+                )
+                client.from("accounts").insert(newAccount)
+                accountState = newAccount
+                _profileState.value = ProfileState.Idle
             }
+        } catch (e: Exception) {
+            Log.e("ProfileViewModel", "Supabase Error: ${e.message}")
+            _profileState.value = ProfileState.Error("Lỗi tải dữ liệu: ${e.message}")
         }
     }
 
     fun updateUserInfo(newUserName: String) {
-        val userId = auth.currentUser?.uid
-        if (userId == null) {
-            _profileState.value = ProfileState.Error("Không thể cập nhật do thiếu thông tin người dùng.")
-            return
-        }
-
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) { _profileState.value = ProfileState.Loading }
-
+        val user = client.auth.currentSessionOrNull()?.user ?: return
+        viewModelScope.launch {
+            _profileState.value = ProfileState.Loading
             try {
-                // Cập nhật trực tiếp bằng userId
-                db.collection("accounts").document(userId).update("userName", newUserName).await()
-                withContext(Dispatchers.Main) {
-                    accountState = accountState?.copy(userName = newUserName)
-                    _profileState.value = ProfileState.Success("Cập nhật thông tin thành công!")
+                client.from("accounts").update(
+                    {
+                        set("userName", newUserName)
+                    }
+                ) {
+                    filter {
+                        eq("userId", user.id)
+                    }
                 }
+                accountState = accountState?.copy(userName = newUserName)
+                _profileState.value = ProfileState.Success("Cập nhật thành công!")
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _profileState.value = ProfileState.Error("Cập nhật thất bại: ${e.message}")
-                }
+                _profileState.value = ProfileState.Error("Cập nhật thất bại: ${e.message}")
             }
         }
     }
@@ -123,57 +120,31 @@ class ProfileViewModel : ViewModel() {
     fun signOut(googleSignInClient: GoogleSignInClient) {
         viewModelScope.launch {
             try {
-                auth.signOut()
-                googleSignInClient.signOut().await()
+                client.auth.signOut()
+                googleSignInClient.signOut()
             } catch (e: Exception) {
-                Log.e("ProfileViewModel", "Error signing out", e)
-                 withContext(Dispatchers.Main) {
-                    _profileState.value = ProfileState.Error("Lỗi khi đăng xuất: ${e.message}")
-                }
+                Log.e("ProfileViewModel", "Sign out error", e)
             }
         }
     }
 
     fun deleteAccount(googleSignInClient: GoogleSignInClient) {
-        val userToDelete = auth.currentUser
-        if (userToDelete == null) {
-            _profileState.value = ProfileState.Error("Không tìm thấy thông tin để xóa.")
-            return
-        }
-        // Lấy ID trực tiếp từ user, không cần biến phụ
-        val docIdToDelete = userToDelete.uid
-
-        viewModelScope.launch(Dispatchers.IO) {
+        val user = client.auth.currentSessionOrNull()?.user ?: return
+        viewModelScope.launch {
             try {
-                db.collection("accounts").document(docIdToDelete).delete().await()
-                Log.d("ProfileViewModel", "Bước 1/3: Xóa document Firestore thành công.")
-
-                userToDelete.delete().await()
-                Log.d("ProfileViewModel", "Bước 2/3: Xóa người dùng khỏi Auth thành công.")
-
-                googleSignInClient.revokeAccess().await()
-                googleSignInClient.signOut().await()
-                Log.d("ProfileViewModel", "Bước 3/3: Thu hồi quyền và đăng xuất Google thành công.")
-
-                withContext(Dispatchers.Main) { auth.signOut() }
-            } catch (e: Exception) {
-                Log.e("ProfileViewModel", "Lỗi nghiêm trọng trong quá trình xóa tài khoản: ", e)
-                withContext(Dispatchers.Main) {
-                    _profileState.value = ProfileState.Error("Lỗi khi xóa tài khoản. Vui lòng đăng nhập lại và thử lại. Lỗi: ${e.message}")
+                client.from("accounts").delete {
+                    filter { eq("userId", user.id) }
                 }
+                client.auth.signOut()
+                googleSignInClient.revokeAccess()
+                googleSignInClient.signOut()
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Delete error", e)
             }
         }
     }
 
-    fun onOpenDeleteDialog() {
-        showDeleteConfirmation = true
-    }
-
-    fun onCloseDeleteDialog() {
-        showDeleteConfirmation = false
-    }
-
-    fun clearState() {
-        _profileState.value = ProfileState.Idle
-    }
+    fun onOpenDeleteDialog() { showDeleteConfirmation = true }
+    fun onCloseDeleteDialog() { showDeleteConfirmation = false }
+    fun clearState() { _profileState.value = ProfileState.Idle }
 }
