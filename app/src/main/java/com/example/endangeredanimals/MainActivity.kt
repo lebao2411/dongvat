@@ -86,7 +86,9 @@ fun App() {
             "forgotpassword_screen",
             "result_screen",
             "animal_screen/{animalId}",
-            "changepassword_screen"
+            "changepassword_screen",
+            "story_selection",
+            "story_play/{gameId}"
         )
         // Kiểm tra logic hiển thị bar chặt chẽ hơn
         val shouldShowBars = currentRoute != null && currentRoute !in fullScreenRoutes
@@ -179,7 +181,7 @@ private fun MainTopAppBar(onSearchNavigate: () -> Unit) {
 private fun MainBottomBar(navController: NavController) {
     val muc = listOf(
         Triple("Home", "home", R.drawable.home),
-        Triple("Game", "game", R.drawable.game),
+        Triple("Ask_AI", "ask_ai", R.drawable.icon_chat),
         Triple("Favorite", "favorite_screen", R.drawable.favorite),
         Triple("Profile", "profile", R.drawable.profile)
     )

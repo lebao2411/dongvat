@@ -19,14 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.ProfileState
 import com.example.endangeredanimals.ViewModel.ProfileViewModel
 import com.example.endangeredanimals.ui.AppBackgroundCard
@@ -156,26 +154,6 @@ fun ProfileScreen(
                                 Text("Lưu thay đổi")
                             }
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        ScoreCard(
-                            modifier = Modifier.weight(1f),
-                            label = "Bảo vệ sinh cảnh",
-                            score = account.habitatScore ?: 0,
-                            icon = painterResource(id = R.drawable.habitat)
-                        )
-                        ScoreCard(
-                            modifier = Modifier.weight(1f),
-                            label = "Bảo tồn động vật",
-                            score = account.conservationScore ?: 0,
-                            icon = painterResource(id = R.drawable.habitat) 
-                        )
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
