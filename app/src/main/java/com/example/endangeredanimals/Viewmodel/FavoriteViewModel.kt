@@ -4,20 +4,20 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.endangeredanimals.Model.Animal
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.firestore.ktx.toObject
-import com.google.firebase.ktx.Firebase
+import com.example.endangeredanimals.Model.Favorite
+import com.example.endangeredanimals.Network.SupabaseInstance
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 class FavoriteViewModel : ViewModel() {
 
-    private val db = Firebase.firestore
-    private val auth = Firebase.auth
+    private val STORAGE_BASE_URL = "https://ehtlxhoymxclqevouozp.supabase.co/storage/v1/object/public/animal_images/"
+
+    private val client = SupabaseInstance.client
 
     private val _favoriteAnimals = MutableStateFlow<List<Animal>>(emptyList())
     val favoriteAnimals = _favoriteAnimals.asStateFlow()
@@ -25,78 +25,79 @@ class FavoriteViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(true)
     val isLoading = _isLoading.asStateFlow()
 
-    private val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-        val user = firebaseAuth.currentUser
-        if (user != null) {
-            // Nếu có người dùng đăng nhập, tải danh sách yêu thích của họ
-            loadFavoriteAnimals()
-        } else {
-            // Nếu người dùng đăng xuất, xóa sạch danh sách
-            _favoriteAnimals.value = emptyList()
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing = _isRefreshing.asStateFlow()
+
+    init {
+        loadFavoriteAnimals()
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            fetchFavoritesFromSupabase()
+            delay(500)
+            _isRefreshing.value = false
+        }
+    }
+
+    fun loadFavoriteAnimals() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            fetchFavoritesFromSupabase()
             _isLoading.value = false
         }
     }
 
-    init {
-        auth.addAuthStateListener(authStateListener)
-    }
-
-    fun loadFavoriteAnimals() {
-        val userId = auth.currentUser?.uid
-        if (userId == null) {
-            Log.e("FavoriteViewModel", "User is not logged in.")
-            _isLoading.value = false
+    private suspend fun fetchFavoritesFromSupabase() {
+        val user = client.auth.currentSessionOrNull()?.user
+        if (user == null) {
             _favoriteAnimals.value = emptyList()
             return
         }
 
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val favoriteDocs = db.collection("favorites")
-                    .whereEqualTo("userId", userId)
-                    .get()
-                    .await()
+        try {
+            val favorites = client.from("favorites")
+                .select {
+                    filter {
+                        eq("userId", user.id)
+                    }
+                }
+                .decodeList<Favorite>()
 
-                val animalIds = favoriteDocs.documents.mapNotNull { it.getString("animalId") }
+            val animalIds = favorites.map { it.animalId }
 
-                if (animalIds.isNotEmpty()) {
-                    val animalsList = mutableListOf<Animal>()
-                    animalIds.forEach { id ->
-                        try {
-                            val document = db.collection("animals").document(id).get().await()
-                            if (document.exists()) {
-                                val animal = document.toObject<Animal>()
-                                if (animal != null) {
-                                    animal.animalID = document.id
-                                    animalsList.add(animal)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.e("FavoriteViewModel", "Failed to fetch animal with id: $id", e)
+            if (animalIds.isNotEmpty()) {
+                val animalsList = client.from("animals")
+                    .select {
+                        filter {
+                            isIn("animalId", animalIds)
                         }
                     }
-                    _favoriteAnimals.value = animalsList
-                } else {
-                    _favoriteAnimals.value = emptyList()
+                    .decodeList<Animal>()
+                
+                // Xử lý imageUrl nếu chỉ chứa tên file
+                val processedAnimals = animalsList.map { animal ->
+                    if (!animal.imageUrl.isNullOrBlank() && !animal.imageUrl!!.startsWith("http")) {
+                        animal.copy(imageUrl = STORAGE_BASE_URL + animal.imageUrl)
+                    } else {
+                        animal
+                    }
                 }
-
-            } catch (e: Exception) {
-                Log.e("FavoriteViewModel", "Error loading favorite animals", e)
+                
+                _favoriteAnimals.value = processedAnimals
+            } else {
                 _favoriteAnimals.value = emptyList()
-            } finally {
-                _isLoading.value = false
             }
+        } catch (e: Exception) {
+            Log.e("FavoriteViewModel", "Supabase Error: ${e.message}")
+            _favoriteAnimals.value = emptyList()
         }
     }
 
-    fun toggleFavorite(
-        animalId: String,
-        isCurrentlyFavorite: Boolean,
-        onComplete: () -> Unit
-    ) {
-        val userId = auth.currentUser?.uid
-        if (userId == null) {
+    fun toggleFavorite(animalId: String, isCurrentlyFavorite: Boolean, onComplete: () -> Unit) {
+        val user = client.auth.currentSessionOrNull()?.user
+        if (user == null) {
             onComplete()
             return
         }
@@ -104,38 +105,22 @@ class FavoriteViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 if (isCurrentlyFavorite) {
-                    val favoriteQuery = db.collection("favorites")
-                        .whereEqualTo("userId", userId)
-                        .whereEqualTo("animalId", animalId)
-                        .limit(1)
-                        .get()
-                        .await()
-                    if (!favoriteQuery.isEmpty) {
-                        val docIdToDelete = favoriteQuery.documents.first().id
-                        db.collection("favorites").document(docIdToDelete).delete().await()
+                    client.from("favorites").delete {
+                        filter {
+                            eq("userId", user.id)
+                            eq("animalId", animalId)
+                        }
                     }
                 } else {
-                    val existingQuery = db.collection("favorites")
-                        .whereEqualTo("userId", userId)
-                        .whereEqualTo("animalId", animalId)
-                        .limit(1)
-                        .get()
-                        .await()
-                    if (existingQuery.isEmpty) {
-                        val newFavorite = hashMapOf("userId" to userId, "animalId" to animalId)
-                        db.collection("favorites").add(newFavorite).await()
-                    }
+                    val newFavorite = Favorite(userId = user.id, animalId = animalId)
+                    client.from("favorites").insert(newFavorite)
                 }
+                fetchFavoritesFromSupabase()
             } catch (e: Exception) {
-                Log.e("FavoriteViewModel", "Lỗi khi cập nhật trạng thái yêu thích", e)
+                Log.e("FavoriteViewModel", "Toggle error: ${e.message}")
             } finally {
                 onComplete()
             }
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        auth.removeAuthStateListener(authStateListener)
     }
 }

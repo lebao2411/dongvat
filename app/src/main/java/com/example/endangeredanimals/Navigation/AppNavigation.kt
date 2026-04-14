@@ -1,6 +1,10 @@
 package com.example.endangeredanimals.Navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -31,14 +35,9 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
             HomeScreen(navController = navController)
         }
 
-        composable("inden_game") {
-            IndenGameScreen(navController = navController)
-        }
-
         composable("changepassword_screen") {
             ChangePasswordScreen(navController = navController)
         }
-        composable("game") { GameScreen(navController = navController) }
 
         composable(route = "favorite_screen") {
             FavoriteScreen(navController = navController)
@@ -53,16 +52,13 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
             arguments = listOf(navArgument("animalId") { type = NavType.StringType })
         ) { backStackEntry ->
             val animalId = backStackEntry.arguments?.getString("animalId")
-
             if (animalId != null) {
                 AnimalScreen(animalId = animalId, navController = navController)
             }
         }
 
         composable("result_screen") {
-            ResultScreen(
-                navController = navController
-            )
+            ResultScreen(navController = navController)
         }
     }
 }

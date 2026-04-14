@@ -1,21 +1,24 @@
 package com.example.endangeredanimals.ViewModel
 
 import android.content.Intent
+import android.util.Log
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.ActivityResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.endangeredanimals.Model.Account
+import com.example.endangeredanimals.Network.SupabaseInstance
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.common.api.ApiException
-import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.Google
+import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.providers.builtin.IDToken
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 sealed class LoginUIState {
     object Idle : LoginUIState()
@@ -26,8 +29,7 @@ sealed class LoginUIState {
 
 class LoginViewModel : ViewModel() {
 
-    private val auth = Firebase.auth
-    private val db = Firebase.firestore
+    private val client = SupabaseInstance.client
 
     private val _loginUIState = MutableStateFlow<LoginUIState>(LoginUIState.Idle)
     val loginUIState = _loginUIState.asStateFlow()
@@ -45,9 +47,13 @@ class LoginViewModel : ViewModel() {
 
             _loginUIState.value = LoginUIState.Loading
             try {
-                auth.signInWithEmailAndPassword(email, password).await()
+                client.auth.signInWith(Email) {
+                    this.email = email
+                    this.password = password
+                }
                 _loginUIState.value = LoginUIState.Success
             } catch (e: Exception) {
+                Log.e("LoginViewModel", "Supabase Auth Error", e)
                 _loginUIState.value = LoginUIState.Error("Email hoặc mật khẩu không chính xác.")
             }
         }
@@ -59,7 +65,6 @@ class LoginViewModel : ViewModel() {
         launcher: ManagedActivityResultLauncher<Intent, ActivityResult>,
         googleSignInClient: GoogleSignInClient
     ) {
-        // Luôn hiển thị trạng thái loading ngay khi bấm nút
         _loginUIState.value = LoginUIState.Loading
         val signInIntent = googleSignInClient.signInIntent
         launcher.launch(signInIntent)
@@ -69,37 +74,44 @@ class LoginViewModel : ViewModel() {
         val task = GoogleSignIn.getSignedInAccountFromIntent(data)
         try {
             val account = task.getResult(ApiException::class.java)!!
-            firebaseAuthWithGoogle(account.idToken!!)
+            supabaseAuthWithGoogle(account.idToken!!)
         } catch (e: ApiException) {
             _loginUIState.value = LoginUIState.Error("Đăng nhập Google thất bại: ${e.message}")
         }
     }
 
-    private fun firebaseAuthWithGoogle(idToken: String) {
+    private fun supabaseAuthWithGoogle(idToken: String) {
         viewModelScope.launch {
             try {
-                val credential = GoogleAuthProvider.getCredential(idToken, null)
-                val authResult = auth.signInWithCredential(credential).await()
-                val user = authResult.user!!
+                // Đăng nhập vào Supabase bằng ID Token nhận được từ Google
+                client.auth.signInWith(IDToken) {
+                    this.idToken = idToken
+                    this.provider = Google
+                }
+                
+                val user = client.auth.currentSessionOrNull()?.user
+                if (user != null) {
+                    val result = client.from("accounts")
+                        .select {
+                            filter {
+                                eq("userId", user.id)
+                            }
+                        }
+                        .decodeSingleOrNull<Account>()
 
-                val userDocRef = db.collection("accounts").document(user.uid)
-                val document = userDocRef.get().await()
-
-                if (!document.exists()) {
-                    saveUserToFirestore(
-                        userId = user.uid,
-                        userName = user.displayName ?: "Người dùng mới",
-                        email = user.email!!
-                    )
+                    if (result == null) {
+                        saveUserToSupabase(
+                            userId = user.id,
+                            userName = user.userMetadata?.get("full_name")?.toString() ?: "Người dùng mới",
+                            email = user.email ?: ""
+                        )
+                    }
                 }
 
                 _loginUIState.value = LoginUIState.Success
             } catch (e: Exception) {
-                android.util.Log.e("LoginViewModel", "Firebase Auth Error: ${e.message}")
-                android.util.Log.e("LoginViewModel", "Error Type: ${e.javaClass.simpleName}")
-                android.util.Log.e("LoginViewModel", "ID Token: ${idToken.take(20)}...")
-
-                _loginUIState.value = LoginUIState.Error("Xác thực Google với Firebase thất bại.")
+                Log.e("LoginViewModel", "Supabase Auth Google Error: ${e.message}")
+                _loginUIState.value = LoginUIState.Error("Xác thực Google với Supabase thất bại.")
             }
         }
     }
@@ -107,31 +119,31 @@ class LoginViewModel : ViewModel() {
     fun signOut(googleSignInClient: GoogleSignInClient) {
         viewModelScope.launch {
             try {
-                auth.signOut()
-                googleSignInClient.signOut().await()
+                client.auth.signOut()
+                googleSignInClient.signOut()
                 _loginUIState.value = LoginUIState.Idle
             } catch (e: Exception) {
-                android.util.Log.e("LoginViewModel", "Error signing out: ${e.message}")
+                Log.e("LoginViewModel", "Error signing out: ${e.message}")
             }
         }
     }
 
-    private fun saveUserToFirestore(userId: String, userName: String, email: String) {
-        val userMap = hashMapOf(
-            "userName" to userName,
-            "email" to email,
-            "password" to "",
-            "habitatScore" to 0,
-            "conservationScore" to 0
+    private suspend fun saveUserToSupabase(userId: String, userName: String, email: String) {
+        val newAccount = Account(
+            userId = userId,
+            userName = userName,
+            email = email,
+            password = "",
+            habitatScore = 0,
+            conservationScore = 0
         )
 
-        db.collection("accounts").document(userId)
-            .set(userMap)
-            .addOnFailureListener { e ->
-                println("Lỗi khi lưu người dùng vào Firestore: ${e.message}")
-            }
+        try {
+            client.from("accounts").insert(newAccount)
+        } catch (e: Exception) {
+            Log.e("LoginViewModel", "Lỗi khi lưu người dùng vào Supabase: ${e.message}")
+        }
     }
-
 
     fun clearErrorState() {
         _loginUIState.value = LoginUIState.Idle

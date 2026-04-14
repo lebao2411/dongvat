@@ -53,10 +53,13 @@ fun LogInScreen(
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     val context = LocalContext.current
+    
+    // Web Client ID lấy từ Google Cloud Console
+    val webClientId = "752816137373-a09e3o6btcihvi22e9e7g0cmrc8rjl0p.apps.googleusercontent.com"
 
     val googleSignInClient = remember {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestIdToken(webClientId)
             .requestEmail()
             .build()
         GoogleSignIn.getClient(context, gso)
@@ -68,9 +71,8 @@ fun LogInScreen(
         if (result.resultCode == Activity.RESULT_OK) {
             loginViewModel.handleGoogleSignInResult(result.data)
         } else {
-            // Nếu người dùng hủy, reset lại trạng thái Loading
             Toast.makeText(context, "Đã hủy đăng nhập bằng Google", Toast.LENGTH_SHORT).show()
-            loginViewModel.clearErrorState() // Đưa về Idle
+            loginViewModel.clearErrorState()
         }
     }
 
@@ -85,9 +87,6 @@ fun LogInScreen(
 
     // Xử lý các trạng thái từ ViewModel
     when (val state = loginState) {
-        is LoginUIState.Loading -> {
-        }
-
         is LoginUIState.Success -> {
             LaunchedEffect(Unit) {
                 Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
@@ -103,8 +102,7 @@ fun LogInScreen(
                 loginViewModel.clearErrorState()
             }
         }
-        is LoginUIState.Idle -> {
-        }
+        else -> {}
     }
 
     Box(
@@ -167,7 +165,6 @@ fun LogInScreen(
                         append("Quên mật khẩu?")
                     }
                 },
-                // SỬA: Đích đến là "forgotpassword_screen", không phải "forgotpassword"
                 onClick = { navController.navigate("forgotpassword_screen") },
                 modifier = Modifier.fillMaxWidth(),
                 style = LocalTextStyle.current.copy(textAlign = TextAlign.End)
@@ -192,13 +189,13 @@ fun LogInScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Divider(modifier = Modifier.weight(1f))
+                HorizontalDivider(modifier = Modifier.weight(1f))
                 Text(
                     text = "hoặc",
                     modifier = Modifier.padding(horizontal = 8.dp),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
-                Divider(modifier = Modifier.weight(1f))
+                HorizontalDivider(modifier = Modifier.weight(1f))
             }
 
             Button(
@@ -229,7 +226,6 @@ fun LogInScreen(
             SignUpText(navController = navController)
         }
 
-        // Hiển thị vòng xoay loading
         if (loginState is LoginUIState.Loading) {
             CircularProgressIndicator(color = AppPrimaryColor)
         }
@@ -257,7 +253,6 @@ fun SignUpText(navController: NavController) {
         onClick = { offset ->
             annotatedString.getStringAnnotations(tag = "SignUp", start = offset, end = offset)
                 .firstOrNull()?.let {
-                    // SỬA: Đích đến là "signup_screen" để khớp với NavGraph
                     navController.navigate("signup_screen")
                 }
         },

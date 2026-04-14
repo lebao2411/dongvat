@@ -2,6 +2,8 @@
 
 package com.example.endangeredanimals.View
 
+import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -18,9 +20,10 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,11 +47,7 @@ import com.example.endangeredanimals.Model.Animal
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.HomeViewModel
 import com.example.endangeredanimals.ui.AppBackgroundCard
-import com.example.endangeredanimals.ui.AppButtonChangePW
-import com.google.gson.Gson
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -58,94 +57,89 @@ fun HomeScreen(
     homeViewModel: HomeViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
-    val animalItems by homeViewModel.animalItems.collectAsState()
+    val randomAnimalItems by homeViewModel.randomAnimalItems.collectAsState()
     val isLoading by homeViewModel.isLoading.collectAsState()
+    val isRefreshing by homeViewModel.isRefreshing.collectAsState()
+    
+    val pullToRefreshState = rememberPullToRefreshState()
 
-    var randomAnimalItems by remember { mutableStateOf<List<Animal>>(emptyList()) }
-    var shuffleTrigger by remember { mutableStateOf(false) }
-
-    LaunchedEffect(animalItems, shuffleTrigger) {
-        if (animalItems.isNotEmpty()) {
-            withContext(Dispatchers.Default) {
-                val processedList = animalItems
-                    .filter { it.imageUrl != "Không rõ" }
-                    .shuffled()
-                    .take(20)
-                withContext(Dispatchers.Main) {
-                    randomAnimalItems = processedList
-                }
-            }
-        }
-    }
-
-    if (isLoading && randomAnimalItems.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-    } else {
-        LazyVerticalStaggeredGrid(
-            columns = StaggeredGridCells.Fixed(2),
-            modifier = modifier
-                .fillMaxSize()
-                .padding(horizontal = 10.dp)
-                .background(Color.White),
-            contentPadding = WindowInsets.navigationBars.asPaddingValues(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalItemSpacing = 8.dp
-        ) {
-            item(span = StaggeredGridItemSpan.FullLine) {
-                CategorySuggestionRow(
-                    categories = homeViewModel.suggestedCategories,
-                    onCategoryClick = { category ->
-                        val encodedCategory = URLEncoder.encode(category, StandardCharsets.UTF_8.toString())
-                        navController.navigate("result_screen?category=$encodedCategory")
-                    }
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        PullToRefreshBox(
+            state = pullToRefreshState,
+            isRefreshing = isRefreshing,
+            onRefresh = { homeViewModel.refresh() },
+            modifier = Modifier.fillMaxSize(),
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = pullToRefreshState,
+                    isRefreshing = isRefreshing,
+                    containerColor = Color.White,
+                    color = Color(0xFF37ab3c),
+                    modifier = Modifier.align(Alignment.TopCenter)
                 )
             }
-
-            item(span = StaggeredGridItemSpan.FullLine) {
-                ImageSlider()
-            }
-
-            item(span = StaggeredGridItemSpan.FullLine) {
-                Row(
+        ) {
+            if (isLoading && randomAnimalItems.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color(0xFF37ab3c))
+                }
+            } else {
+                LazyVerticalStaggeredGrid(
+                    columns = StaggeredGridCells.Fixed(2),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 8.dp, top = 16.dp, bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .fillMaxSize()
+                        .padding(horizontal = 10.dp),
+                    contentPadding = WindowInsets.navigationBars.asPaddingValues(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalItemSpacing = 8.dp
                 ) {
-                    Text(
-                        text = "Khám phá thế giới động vật",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    FilledTonalIconButton(
-                        onClick = { shuffleTrigger = !shuffleTrigger },
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(AppBackgroundCard)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Làm mới danh sách"
+                    item(span = StaggeredGridItemSpan.FullLine) {
+                        Spacer(modifier = Modifier.height(5.dp).fillMaxWidth())
+                    }
+
+                    item(span = StaggeredGridItemSpan.FullLine) {
+                        ImageSlider()
+                    }
+
+                    item(span = StaggeredGridItemSpan.FullLine) {
+                        CategorySuggestionRow(
+                            categories = homeViewModel.suggestedCategories,
+                            onCategoryClick = { category ->
+                                val encodedCategory = URLEncoder.encode(category, StandardCharsets.UTF_8.toString())
+                                navController.navigate("result_screen?category=$encodedCategory")
+                            }
                         )
                     }
-                }
-            }
 
-            items(randomAnimalItems, key = { it.animalID ?: it.hashCode() }) { animal ->
-                AnimalGridItem(
-                    animal = animal,
-                    onItemClick = {
-                        val animalJson = Gson().toJson(animal)
-                        val encodedJson = URLEncoder.encode(animalJson, StandardCharsets.UTF_8.toString())
-
-                        navController.navigate("animal_screen/${animal.animalID}")
+                    item(span = StaggeredGridItemSpan.FullLine) {
+                        Text(
+                            text = "Khám phá thế giới động vật",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 8.dp, top = 5.dp, bottom = 8.dp)
+                        )
                     }
-                )
-            }
 
-            item(span = StaggeredGridItemSpan.FullLine) {
-                DisclaimerText()
+                    items(randomAnimalItems, key = { it.animalID?.toString() ?: it.hashCode().toString() }) { animal ->
+                        AnimalGridItem(
+                            animal = animal,
+                            onItemClick = {
+                                val id = animal.animalID?.toString()
+                                if (!id.isNullOrBlank()) {
+                                    val encodedId = Uri.encode(id)
+                                    navController.navigate("animal_screen/$encodedId")
+                                }
+                            }
+                        )
+                    }
+
+                    item(span = StaggeredGridItemSpan.FullLine) {
+                        DisclaimerText()
+                    }
+                }
             }
         }
     }
@@ -222,7 +216,7 @@ private fun ImageSlider() {
 
             LaunchedEffect(Unit) {
                 while (true) {
-                    delay(10000L) // Chờ 10 giây
+                    delay(10000L)
                     val nextPage = (pagerState.currentPage + 1) % pagerState.pageCount
                     pagerState.animateScrollToPage(nextPage)
                 }
