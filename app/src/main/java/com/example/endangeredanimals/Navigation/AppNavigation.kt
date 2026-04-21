@@ -47,6 +47,12 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
             ProfileScreen(navController = navController)
         }
 
+        composable("scan") {
+            ScannerScreen(navController = navController)
+        }
+
+
+
         composable(
             route = "animal_screen/{animalId}",
             arguments = listOf(navArgument("animalId") { type = NavType.StringType })
