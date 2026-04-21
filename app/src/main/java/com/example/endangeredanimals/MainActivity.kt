@@ -181,7 +181,7 @@ private fun MainTopAppBar(onSearchNavigate: () -> Unit) {
 private fun MainBottomBar(navController: NavController) {
     val muc = listOf(
         Triple("Home", "home", R.drawable.home),
-        Triple("Ask_AI", "ask_ai", R.drawable.icon_chat),
+        Triple("Scan", "scan", R.drawable.scanner),
         Triple("Favorite", "favorite_screen", R.drawable.favorite),
         Triple("Profile", "profile", R.drawable.profile)
     )
@@ -201,13 +201,10 @@ private fun MainBottomBar(navController: NavController) {
                 onClick = {
                     if (currentRoute != route) {
                         navController.navigate(route) {
-                            // Quay về start destination của graph để tránh tích tụ stack
-                            popUpTo(navController.graph.findStartDestination().id) { 
+                            popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true 
                             }
-                            // Tránh tạo nhiều bản sao của cùng một đích đến
                             launchSingleTop = true
-                            // Khôi phục trạng thái khi chọn lại tab cũ
                             restoreState = true
                         }
                     }

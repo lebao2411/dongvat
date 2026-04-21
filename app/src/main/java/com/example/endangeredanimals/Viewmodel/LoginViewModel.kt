@@ -133,9 +133,7 @@ class LoginViewModel : ViewModel() {
             userId = userId,
             userName = userName,
             email = email,
-            password = "",
-            habitatScore = 0,
-            conservationScore = 0
+            password = ""
         )
 
         try {

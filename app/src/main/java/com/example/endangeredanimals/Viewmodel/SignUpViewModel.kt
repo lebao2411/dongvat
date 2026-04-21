@@ -79,9 +79,8 @@ class SignUpViewModel : ViewModel() {
                     val account = Account(
                         userId = user.id,
                         userName = userName,
-                        email = user.email ?: "",
-                        habitatScore = 0,
-                        conservationScore = 0
+                        email = user.email ?: ""
+
                     )
                     client.from("accounts").insert(account)
                     _signUpUIState.value = SignUpUIState.Success

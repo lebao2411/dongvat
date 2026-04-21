@@ -11,6 +11,4 @@ data class Account(
     val userName: String = "",
     val email: String = "",
     val password: String? = null,
-    val habitatScore: Int = 0,
-    val conservationScore: Int = 0
 )
