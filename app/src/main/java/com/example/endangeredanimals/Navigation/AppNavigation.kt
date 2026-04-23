@@ -1,10 +1,10 @@
 package com.example.endangeredanimals.Navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -18,7 +18,36 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
     NavHost(
         navController = navController,
         startDestination = startDestination,
-        modifier = modifier
+        modifier = modifier,
+
+        // Hiệu ứng khi MỞ một màn hình MỚI (Trượt từ Phải sang Trái + Hiện rõ dần)
+        enterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(400)
+            ) + fadeIn(animationSpec = tween(400))
+        },
+        // Hiệu ứng của màn hình CŨ khi bị màn hình mới đè lên (Trượt sang Trái + Mờ dần)
+        exitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(400)
+            ) + fadeOut(animationSpec = tween(400))
+        },
+        // Hiệu ứng khi bấm BACK quay lại màn hình CŨ (Trượt từ Trái sang Phải + Hiện rõ dần)
+        popEnterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(400)
+            ) + fadeIn(animationSpec = tween(400))
+        },
+        // Hiệu ứng của màn hình HIỆN TẠI khi bị đóng đi bằng nút BACK (Trượt sang Phải + Mờ dần)
+        popExitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(400)
+            ) + fadeOut(animationSpec = tween(400))
+        }
     ) {
         composable("login") {
             LogInScreen(navController = navController)
