@@ -4,10 +4,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,6 +30,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
@@ -87,8 +94,6 @@ fun App() {
             "result_screen",
             "animal_screen/{animalId}",
             "changepassword_screen",
-            "story_selection",
-            "story_play/{gameId}"
         )
         // Kiểm tra logic hiển thị bar chặt chẽ hơn
         val shouldShowBars = currentRoute != null && currentRoute !in fullScreenRoutes
@@ -183,46 +188,59 @@ private fun MainBottomBar(navController: NavController) {
         Triple("Home", "home", R.drawable.home),
         Triple("Scan", "scan", R.drawable.scanner),
         Triple("Favorite", "favorite_screen", R.drawable.favorite),
-        Triple("Profile", "profile", R.drawable.profile)
+        Triple("Menu", "menu", R.drawable.menu)
     )
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    NavigationBar(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(65.dp),
-        containerColor = AppBottomNavBackground,
+        color = AppBottomNavBackground
     ) {
-        muc.forEach { (name, route, iconRes) ->
-            val isSelected = currentRoute == route
-            NavigationBarItem(
-                selected = isSelected,
-                onClick = {
-                    if (currentRoute != route) {
-                        navController.navigate(route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true 
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            muc.forEach { (name, route, iconRes) ->
+                val isSelected = currentRoute == route
+
+                val iconSize by animateDpAsState(
+                    targetValue = if (isSelected) 30.dp else 24.dp,
+                    animationSpec = tween(durationMillis = 300),
+                    label = "size_animation_$name"
+                )
+
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(RoundedCornerShape(25.dp))
+                        .clickable {
+                            if (currentRoute != route) {
+                                navController.navigate(route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
-                            launchSingleTop = true
-                            restoreState = true
                         }
-                    }
-                },
-                icon = {
+                ) {
                     Icon(
                         painter = painterResource(id = iconRes),
                         contentDescription = name,
                         tint = if (isSelected) Color.Black else Color.Gray,
-                        modifier = Modifier.size(25.dp)
+                        modifier = Modifier.size(iconSize)
                     )
-                },
-                colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent)
-            )
+                }
+            }
         }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable
