@@ -111,13 +111,12 @@ fun MenuSectionTitle(title: String) {
     )
 }
 
-// Component Cốt lõi: Tạo ra một Card nhỏ nổi lên cho từng lựa chọn
 @Composable
 fun MenuItemCard(
     icon: ImageVector,
     title: String,
     subtitle: String? = null,
-    iconTint: Color = Color(0xFF4CAF50), // Màu xanh lá mặc định hợp với app bảo tồn
+    iconTint: Color = Color(0xFF4CAF50),
     textColor: Color = Color.Black,
     onClick: () -> Unit
 ) {
