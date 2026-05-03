@@ -35,7 +35,6 @@ import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.ForgotPasswordState
 import com.example.endangeredanimals.ViewModel.ForgotPasswordViewModel
-import com.example.endangeredanimals.ui.AppPrimaryColor
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -182,7 +181,7 @@ fun ForgotPasswordScreen(
                                     }
                                 },
                                 enabled = !isOtpVerified,
-                                colors = ButtonDefaults.buttonColors(containerColor = AppPrimaryColor)
+                                colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
                             ) {
                                 Text(if (!isOtpVerified) "Xác thực" else "Đã OK")
                             }
@@ -250,7 +249,7 @@ fun ForgotPasswordScreen(
                                 .fillMaxWidth()
                                 .height(50.dp),
                             enabled = isOtpVerified,
-                            colors = ButtonDefaults.buttonColors(containerColor = AppPrimaryColor)
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
                             Text("Xác Nhận Đổi Mật Khẩu", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }

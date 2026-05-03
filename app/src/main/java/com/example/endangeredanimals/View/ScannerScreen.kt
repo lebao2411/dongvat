@@ -14,7 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color // Đảm bảo Color đã được import
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -66,8 +65,7 @@ fun ScannerScreen(
                 },
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-            // THAY ĐỔI 1: Đổi màu nền của Card thành trắng
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -80,7 +78,6 @@ fun ScannerScreen(
                             .crossfade(true)
                             .build(),
                         contentDescription = "Ảnh động vật",
-                        // THAY ĐỔI 2: Đổi ContentScale.Crop thành ContentScale.Fit
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -90,12 +87,13 @@ fun ScannerScreen(
                             painter = painterResource(id = R.drawable.add_image),
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
-                            tint = Color.DarkGray
+                            // LẤY MÀU XÁM TỪ THEME CHO CHỮ PHỤ VÀ ICON
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Nhấn để chọn ảnh từ thư viện",
-                            color = Color.DarkGray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 16.sp
                         )
                     }
@@ -105,7 +103,7 @@ fun ScannerScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Nút phân tích AI
+        // Nút phân tích AI (Tự động nhận màu Green500 nhờ Theme)
         Button(
             onClick = { viewModel.analyzeImage() },
             modifier = Modifier
@@ -115,7 +113,10 @@ fun ScannerScreen(
             enabled = uiState.imageUri != null && !uiState.isLoading
         ) {
             if (uiState.isLoading) {
-                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
             } else {
                 Text("Bắt đầu nhận diện AI", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
@@ -131,7 +132,8 @@ fun ScannerScreen(
                     .wrapContentHeight(),
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+                // LẤY MÀU XÁM NHẠT CHO NỀN CARD KẾT QUẢ TỪ THEME
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -141,13 +143,14 @@ fun ScannerScreen(
                         Text(
                             text = "Kết quả dự đoán:",
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = uiState.aiResult!!,
                             style = MaterialTheme.typography.titleLarge,
                             textAlign = TextAlign.Center,
+                            // MÀU CHỮ LẤY MÀU XANH CHÍNH (Green500)
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -156,7 +159,6 @@ fun ScannerScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Hai Button chức năng dưới cùng
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -170,7 +172,7 @@ fun ScannerScreen(
                         .height(50.dp),
                     shape = RoundedCornerShape(25.dp)
                 ) {
-                    Text("Thông tin loài", color = Color.Black)
+                    Text("Thông tin loài", color = MaterialTheme.colorScheme.onSurface)
                 }
 
                 Button(

@@ -39,7 +39,6 @@ import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.LoginUIState
 import com.example.endangeredanimals.ViewModel.LoginViewModel
-import com.example.endangeredanimals.ui.AppPrimaryColor
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 
@@ -79,10 +78,10 @@ fun LogInScreen(
     val loginState by loginViewModel.loginUIState.collectAsState()
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = AppPrimaryColor,
+        focusedBorderColor = MaterialTheme.colorScheme.primary,
         unfocusedBorderColor = Color.Gray,
-        cursorColor = AppPrimaryColor,
-        focusedLabelColor = AppPrimaryColor,
+        cursorColor = MaterialTheme.colorScheme.primary,
+        focusedLabelColor = MaterialTheme.colorScheme.primary,
     )
 
     // Xử lý các trạng thái từ ViewModel
@@ -177,7 +176,7 @@ fun LogInScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AppPrimaryColor),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 enabled = loginState !is LoginUIState.Loading,
                 shape = RoundedCornerShape(16.dp)
             ) {
@@ -227,7 +226,7 @@ fun LogInScreen(
         }
 
         if (loginState is LoginUIState.Loading) {
-            CircularProgressIndicator(color = AppPrimaryColor)
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
     }
 }

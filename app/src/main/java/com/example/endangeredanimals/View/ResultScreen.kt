@@ -34,8 +34,6 @@ import coil.request.ImageRequest
 import com.example.endangeredanimals.Model.Animal
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.ResultViewModel
-import com.example.endangeredanimals.ui.AppBackgroundCard
-import com.example.endangeredanimals.ui.AppPrimaryColor
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,7 +67,7 @@ fun ResultScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(AppPrimaryColor)
+                .background(MaterialTheme.colorScheme.primary)
                 .statusBarsPadding()
                 .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -152,7 +150,7 @@ private fun ResultCard(
             .clickable { onClick(animal) },
         shape = RoundedCornerShape(10.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 5.dp),
-        colors = CardDefaults.cardColors(containerColor = AppBackgroundCard)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             val imageModel = if (animal.imageUrl.isNullOrBlank() || animal.imageUrl == "Không rõ") {

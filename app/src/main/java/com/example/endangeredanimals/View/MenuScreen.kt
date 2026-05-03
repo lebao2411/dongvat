@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -17,13 +16,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.example.endangeredanimals.R
 
 @Composable
 fun MenuScreen(navController: NavHostController) {
@@ -38,7 +40,7 @@ fun MenuScreen(navController: NavHostController) {
             text = "Menu",
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp, top = 8.dp)
+            modifier = Modifier.padding( top = 8.dp)
         )
 
         // --- NHÓM TÀI KHOẢN ---
@@ -53,21 +55,20 @@ fun MenuScreen(navController: NavHostController) {
         // --- NHÓM CỘNG ĐỒNG ---
         MenuSectionTitle(title = "Cộng đồng bảo tồn")
         MenuItemCard(
-            icon = Icons.Default.Favorite,
-            title = "Đóng góp của tôi",
-            onClick = { /* Điều hướng đến trang đóng góp */ }
+            iconPainter = painterResource(R.drawable.animal),
+            title = "Đóng góp ảnh",
+            onClick = { navController.navigate("contribution") }
         )
         Spacer(modifier = Modifier.height(7.dp)) // Khoảng cách 7.dp theo yêu cầu
 
         MenuItemCard(
-            icon = Icons.AutoMirrored.Filled.List,
+            iconPainter = painterResource(R.drawable.discuss),
             title = "Thảo luận cộng đồng",
-            onClick = { /* Điều hướng đến trang thảo luận */ }
-        )
+            onClick = { /* Điều hướng đến trang thảo luận */ })
         Spacer(modifier = Modifier.height(7.dp))
 
         MenuItemCard(
-            icon = Icons.Default.Star,
+            iconPainter = painterResource(R.drawable.leader_board),
             title = "Bảng xếp hạng",
             onClick = { /* Điều hướng đến trang BXH */ }
         )
@@ -88,9 +89,8 @@ fun MenuScreen(navController: NavHostController) {
             textColor = Color.Red,
             onClick = {
                 // Gọi hàm đăng xuất của Supabase tại đây
-                // Ví dụ: viewModel.logOut()
                 navController.navigate("login") {
-                    popUpTo(0) // Xóa toàn bộ lịch sử màn hình để không back lại được
+                    popUpTo(0)
                 }
             }
         )
@@ -116,7 +116,7 @@ fun MenuItemCard(
     icon: ImageVector,
     title: String,
     subtitle: String? = null,
-    iconTint: Color = Color(0xFF4CAF50),
+    iconTint: Color = MaterialTheme.colorScheme.primary,
     textColor: Color = Color.Black,
     onClick: () -> Unit
 ) {
@@ -172,6 +172,73 @@ fun MenuItemCard(
             }
 
             // Mũi tên chỉ hướng bên phải
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Đi tiếp",
+                tint = Color.LightGray
+            )
+        }
+    }
+}
+
+@Composable
+fun MenuItemCard(
+    iconPainter: Painter,
+    title: String,
+    subtitle: String? = null,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
+    textColor: Color = Color.Black,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(iconTint.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                // SỬ DỤNG PAINTER Ở ĐÂY
+                Icon(
+                    painter = iconPainter,
+                    contentDescription = title,
+                    tint = iconTint,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = textColor
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+            }
+
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = "Đi tiếp",

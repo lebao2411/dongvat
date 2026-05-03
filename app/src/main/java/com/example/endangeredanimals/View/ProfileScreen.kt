@@ -27,11 +27,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.endangeredanimals.ViewModel.ProfileState
 import com.example.endangeredanimals.ViewModel.ProfileViewModel
-import com.example.endangeredanimals.ui.AppBackgroundCard
-import com.example.endangeredanimals.ui.AppButtonChangePW
-import com.example.endangeredanimals.ui.AppGrayBlue
-import com.example.endangeredanimals.ui.AppPrimaryColor
-import com.example.endangeredanimals.ui.AppWarningColor
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.example.endangeredanimals.Network.SupabaseInstance
@@ -117,7 +112,7 @@ fun ProfileScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                        colors = CardDefaults.cardColors(containerColor = AppBackgroundCard)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -127,7 +122,7 @@ fun ProfileScreen(
                                 imageVector = Icons.Default.AccountCircle,
                                 contentDescription = "Avatar",
                                 modifier = Modifier.size(100.dp),
-                                tint = AppPrimaryColor
+                                tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(16.dp))
 
@@ -149,7 +144,7 @@ fun ProfileScreen(
                             Button(
                                 onClick = { profileViewModel.updateUserInfo(userName) },
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = AppPrimaryColor)
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                             ) {
                                 Text("Lưu thay đổi")
                             }
@@ -166,7 +161,7 @@ fun ProfileScreen(
                             onClick = { navController.navigate("changepassword_screen") },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = AppButtonChangePW,
+                                containerColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 contentColor = Color.White
                             )
                         ) {
@@ -175,28 +170,16 @@ fun ProfileScreen(
 
                         Button(
                             onClick = {
-                                profileViewModel.signOut(googleSignInClient)
+                                profileViewModel.onOpenDeleteDialog()
                                 navController.navigate("login") {
                                     popUpTo(0) { inclusive = true }
                                 }
                             },
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = AppGrayBlue)
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Text("Đăng xuất")
+                            Text("Xóa tài khoản")
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider()
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = { profileViewModel.onOpenDeleteDialog() },
-                        colors = ButtonDefaults.buttonColors(containerColor = AppWarningColor),
-                        contentPadding = PaddingValues(horizontal = 32.dp)
-                    ) {
-                        Text("Xóa tài khoản")
                     }
                 }
             }
@@ -212,7 +195,7 @@ fun ProfileScreen(
                                 profileViewModel.onCloseDeleteDialog()
                                 profileViewModel.deleteAccount(googleSignInClient)
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = AppWarningColor)
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         ) {
                             Text("Xóa")
                         }
@@ -239,7 +222,7 @@ fun ScoreCard(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = AppBackgroundCard)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -250,7 +233,7 @@ fun ScoreCard(
                 painter = icon,
                 contentDescription = label,
                 modifier = Modifier.size(32.dp),
-                tint = AppPrimaryColor
+                tint = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(

@@ -49,38 +49,32 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
             ) + fadeOut(animationSpec = tween(400))
         }
     ) {
+        composable("main_screen") {
+            MainScreen(rootNavController = navController)
+        }
+
         composable("login") {
             LogInScreen(navController = navController)
         }
-        composable("signup_screen") {
+        composable("signup") {
             SignUpScreen(navController = navController)
         }
 
-        composable("forgotpassword_screen") {
+        composable("forgotpassword") {
             ForgotPasswordScreen(navController = navController)
         }
 
-        composable("home") {
-            HomeScreen(navController = navController)
-        }
-
-        composable("changepassword_screen") {
+        composable("changepassword") {
             ChangePasswordScreen(navController = navController)
-        }
-
-        composable(route = "favorite_screen") {
-            FavoriteScreen(navController = navController)
         }
 
         composable("profile") {
             ProfileScreen(navController = navController)
         }
 
-        composable("scan") {
-            ScannerScreen(navController = navController)
+        composable("contribution") {
+            ContributeScreen(navController = navController, initialImageUri = null, aiSpeciesResult = null)
         }
-
-
 
         composable(
             route = "animal_screen/{animalId}",
