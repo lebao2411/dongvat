@@ -8,10 +8,12 @@ import com.example.endangeredanimals.Model.Favorite
 import com.example.endangeredanimals.Network.SupabaseInstance
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class FavoriteViewModel : ViewModel() {
 
@@ -29,7 +31,11 @@ class FavoriteViewModel : ViewModel() {
     val isRefreshing = _isRefreshing.asStateFlow()
 
     init {
-        loadFavoriteAnimals()
+        if (_favoriteAnimals.value.isEmpty()) {
+            loadFavoriteAnimals()
+        } else {
+            _isLoading.value = false
+        }
     }
 
     fun refresh() {
@@ -50,48 +56,41 @@ class FavoriteViewModel : ViewModel() {
     }
 
     private suspend fun fetchFavoritesFromSupabase() {
-        val user = client.auth.currentSessionOrNull()?.user
-        if (user == null) {
-            _favoriteAnimals.value = emptyList()
-            return
-        }
+        withContext(Dispatchers.IO) {
+            val user = client.auth.currentSessionOrNull()?.user
+            if (user == null) {
+                _favoriteAnimals.value = emptyList()
+                return@withContext // Thoát khỏi khối withContext
+            }
 
-        try {
-            val favorites = client.from("favorites")
-                .select {
-                    filter {
-                        eq("userId", user.id)
-                    }
-                }
-                .decodeList<Favorite>()
+            try {
+                val favorites = client.from("favorites")
+                    .select { filter { eq("userId", user.id) } }
+                    .decodeList<Favorite>()
 
-            val animalIds = favorites.map { it.animalId }
+                val animalIds = favorites.map { it.animalId }
 
-            if (animalIds.isNotEmpty()) {
-                val animalsList = client.from("animals")
-                    .select {
-                        filter {
-                            isIn("animalId", animalIds)
+                if (animalIds.isNotEmpty()) {
+                    val animalsList = client.from("animals")
+                        .select { filter { isIn("animalId", animalIds) } }
+                        .decodeList<Animal>()
+
+                    val processedAnimals = animalsList.map { animal ->
+                        if (!animal.imageUrl.isNullOrBlank() && !animal.imageUrl!!.startsWith("http")) {
+                            animal.copy(imageUrl = STORAGE_BASE_URL + animal.imageUrl)
+                        } else {
+                            animal
                         }
                     }
-                    .decodeList<Animal>()
-                
-                // Xử lý imageUrl nếu chỉ chứa tên file
-                val processedAnimals = animalsList.map { animal ->
-                    if (!animal.imageUrl.isNullOrBlank() && !animal.imageUrl!!.startsWith("http")) {
-                        animal.copy(imageUrl = STORAGE_BASE_URL + animal.imageUrl)
-                    } else {
-                        animal
-                    }
+
+                    _favoriteAnimals.value = processedAnimals
+                } else {
+                    _favoriteAnimals.value = emptyList()
                 }
-                
-                _favoriteAnimals.value = processedAnimals
-            } else {
+            } catch (e: Exception) {
+                Log.e("FavoriteViewModel", "Supabase Error: ${e.message}")
                 _favoriteAnimals.value = emptyList()
             }
-        } catch (e: Exception) {
-            Log.e("FavoriteViewModel", "Supabase Error: ${e.message}")
-            _favoriteAnimals.value = emptyList()
         }
     }
 
@@ -102,7 +101,7 @@ class FavoriteViewModel : ViewModel() {
             return
         }
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (isCurrentlyFavorite) {
                     client.from("favorites").delete {
@@ -119,7 +118,9 @@ class FavoriteViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e("FavoriteViewModel", "Toggle error: ${e.message}")
             } finally {
-                onComplete()
+                withContext(Dispatchers.Main) {
+                    onComplete()
+                }
             }
         }
     }

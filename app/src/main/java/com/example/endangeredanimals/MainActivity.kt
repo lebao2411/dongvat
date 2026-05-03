@@ -26,6 +26,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -49,8 +50,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.Navigation.AppNavigation
 import com.example.endangeredanimals.Network.SupabaseInstance
-import com.example.endangeredanimals.ui.AppBottomNavBackground
-import com.example.endangeredanimals.ui.AppPrimaryColor
+import com.example.endangeredanimals.ui.BottomNavBackground
 import com.example.endangeredanimals.ui.EndangeredAnimalsTheme
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -67,178 +67,27 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// MainActivity.kt
 @Composable
 fun App() {
     val navController = rememberNavController()
     val client = SupabaseInstance.client
-    
     val sessionStatus by client.auth.sessionStatus.collectAsState()
     var startDestination by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(sessionStatus) {
         startDestination = when (sessionStatus) {
-            is SessionStatus.Authenticated -> "home"
+            is SessionStatus.Authenticated -> "main_screen"
             is SessionStatus.NotAuthenticated -> "login"
             else -> null
         }
     }
 
     if (startDestination != null) {
-        val navBackStackEntry by navController.currentBackStackEntryAsState()
-        val currentRoute = navBackStackEntry?.destination?.route
-
-        val fullScreenRoutes = listOf(
-            "login",
-            "signup_screen",
-            "forgotpassword_screen",
-            "result_screen",
-            "animal_screen/{animalId}",
-            "changepassword_screen",
+        AppNavigation(
+            startDestination = startDestination!!,
+            navController = navController
         )
-        // Kiểm tra logic hiển thị bar chặt chẽ hơn
-        val shouldShowBars = currentRoute != null && currentRoute !in fullScreenRoutes
-
-        Scaffold(
-            topBar = {
-                if (shouldShowBars) {
-                    MainTopAppBar(
-                        onSearchNavigate = {
-                            if (currentRoute != "result_screen") {
-                                navController.navigate("result_screen")
-                            }
-                        }
-                    )
-                }
-            },
-            bottomBar = {
-                if (shouldShowBars) {
-                    MainBottomBar(navController = navController)
-                }
-            }
-        ) { innerPadding ->
-            AppNavigation(
-                startDestination = startDestination!!,
-                navController = navController,
-                modifier = if (shouldShowBars) Modifier.padding(innerPadding) else Modifier
-            )
-        }
-    }
-}
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MainTopAppBar(onSearchNavigate: () -> Unit) {
-    TopAppBar(
-        colors = topAppBarColors(containerColor = AppPrimaryColor),
-        title = {
-            Image(
-                painter = painterResource(id = R.drawable.protect_animals),
-                contentDescription = "App Logo",
-                modifier = Modifier
-                    .size(45.dp)
-                    .clip(RoundedCornerShape(25.dp))
-            )
-        },
-        actions = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(end = 16.dp)
-            ) {
-                Button(
-                    onClick = onSearchNavigate,
-                    shape = RoundedCornerShape(25.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.2f)
-                    ),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Tìm kiếm",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text(
-                            text = "Tìm kiếm",
-                            color = Color.White,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.size(8.dp))
-
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Thông báo",
-                    tint = Color.White,
-                    modifier = Modifier.size(25.dp)
-                )
-            }
-        }
-    )
-}
-
-@Composable
-private fun MainBottomBar(navController: NavController) {
-    val muc = listOf(
-        Triple("Home", "home", R.drawable.home),
-        Triple("Scan", "scan", R.drawable.scanner),
-        Triple("Favorite", "favorite_screen", R.drawable.favorite),
-        Triple("Menu", "menu", R.drawable.menu)
-    )
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(65.dp),
-        color = AppBottomNavBackground
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            muc.forEach { (name, route, iconRes) ->
-                val isSelected = currentRoute == route
-
-                val iconSize by animateDpAsState(
-                    targetValue = if (isSelected) 30.dp else 24.dp,
-                    animationSpec = tween(durationMillis = 300),
-                    label = "size_animation_$name"
-                )
-
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(RoundedCornerShape(25.dp))
-                        .clickable {
-                            if (currentRoute != route) {
-                                navController.navigate(route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            }
-                        }
-                ) {
-                    Icon(
-                        painter = painterResource(id = iconRes),
-                        contentDescription = name,
-                        tint = if (isSelected) Color.Black else Color.Gray,
-                        modifier = Modifier.size(iconSize)
-                    )
-                }
-            }
-        }
     }
 }
 

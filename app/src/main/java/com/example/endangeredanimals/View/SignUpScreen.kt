@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
-import com.example.endangeredanimals.ui.AppPrimaryColor
 
 @Composable
 fun SignUpScreen(navController: NavHostController) {
@@ -106,7 +105,7 @@ fun SignUpScreen(navController: NavHostController) {
                     .fillMaxWidth()
                     .height(60.dp)
                     .padding(top = 16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AppPrimaryColor)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("Đăng ký", fontSize = 18.sp)
             }

@@ -35,7 +35,11 @@ class HomeViewModel : ViewModel() {
     val isRefreshing = _isRefreshing.asStateFlow()
 
     init {
-        loadData()
+        if (_animalItems.value.isEmpty()) {
+            loadData()
+        } else {
+            _isLoading.value = false
+        }
     }
 
     private fun loadData() {
@@ -57,26 +61,27 @@ class HomeViewModel : ViewModel() {
     }
 
     private suspend fun fetchAnimalsFromSupabase() {
-        try {
-            val animals = SupabaseInstance.client
-                .from("animals")
-                .select()
-                .decodeList<Animal>()
+        withContext(Dispatchers.IO) {
+            try {
+                val animals = SupabaseInstance.client
+                    .from("animals")
+                    .select()
+                    .decodeList<Animal>()
 
-            // Nối tên file trong database với link gốc của Storage
-            val processedAnimals = animals.map { animal ->
-                if (!animal.imageUrl.isNullOrBlank() && !animal.imageUrl!!.startsWith("http")) {
-                    animal.copy(imageUrl = STORAGE_BASE_URL + animal.imageUrl)
-                } else {
-                    animal
+                val processedAnimals = animals.map { animal ->
+                    if (!animal.imageUrl.isNullOrBlank() && !animal.imageUrl!!.startsWith("http")) {
+                        animal.copy(imageUrl = STORAGE_BASE_URL + animal.imageUrl)
+                    } else {
+                        animal
+                    }
                 }
+
+                _animalItems.value = processedAnimals
+                Log.d("HomeViewModel", "Successfully fetched ${processedAnimals.size} animals.")
+
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error fetching animals", e)
             }
-
-            _animalItems.value = processedAnimals
-            Log.d("HomeViewModel", "Successfully fetched ${processedAnimals.size} animals from Supabase.")
-
-        } catch (e: Exception) {
-            Log.e("HomeViewModel", "Error fetching animals from Supabase", e)
         }
     }
 

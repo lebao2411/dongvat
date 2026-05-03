@@ -34,8 +34,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.ChangePasswordState
 import com.example.endangeredanimals.ViewModel.ChangePasswordViewModel
-import com.example.endangeredanimals.ui.AppBottomNavBackground
-import com.example.endangeredanimals.ui.AppPrimaryColor
+import com.example.endangeredanimals.ui.BottomNavBackground
+import com.example.endangeredanimals.ui.Green500
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,7 +78,7 @@ fun ChangePasswordScreen(
         modifier = Modifier
             .fillMaxSize()
             .navigationBarsPadding()
-            .background(AppBottomNavBackground)
+            .background(BottomNavBackground)
     ) {
         TopAppBar(
             title = {  },
@@ -148,7 +148,7 @@ fun ChangePasswordScreen(
                             .height(50.dp),
                         enabled = changePasswordState !is ChangePasswordState.Loading,
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppPrimaryColor)
+                        colors = ButtonDefaults.buttonColors(containerColor = Green500)
                     ) {
                         Text("XÁC NHẬN", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
@@ -195,9 +195,9 @@ private fun PasswordTextField(
         },
         shape = RoundedCornerShape(16.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = AppPrimaryColor,
-            cursorColor = AppPrimaryColor,
-            focusedLabelColor = AppPrimaryColor,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            cursorColor = MaterialTheme.colorScheme.primary,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
         )
     )
 }

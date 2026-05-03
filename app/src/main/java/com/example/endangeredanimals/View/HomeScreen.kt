@@ -46,7 +46,7 @@ import coil.compose.AsyncImage
 import com.example.endangeredanimals.Model.Animal
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.HomeViewModel
-import com.example.endangeredanimals.ui.AppBackgroundCard
+import com.example.endangeredanimals.ui.Neutral100
 import kotlinx.coroutines.delay
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -269,7 +269,7 @@ fun AnimalGridItem(
             .clickable(onClick = onItemClick),
         shape = RoundedCornerShape(10.dp),
         elevation = CardDefaults.cardElevation(5.dp),
-        colors = CardDefaults.cardColors(containerColor = AppBackgroundCard)
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             AsyncImage(
