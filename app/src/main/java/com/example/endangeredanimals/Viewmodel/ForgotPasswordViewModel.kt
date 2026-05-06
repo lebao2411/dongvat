@@ -4,8 +4,8 @@ import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.endangeredanimals.Network.SupabaseInstance
-import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.OtpType
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.gotrue.OtpType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch

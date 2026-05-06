@@ -80,19 +80,14 @@ dependencies {
     implementation(libs.lottie.compose)
     implementation("androidx.navigation:navigation-compose:2.8.0-beta01")
 
-    // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
-    implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-auth-ktx")
-
     // Supabase
-    implementation(platform("io.github.jan-tennert.supabase:bom:3.0.1"))
+    implementation(platform("io.github.jan-tennert.supabase:bom:2.6.1"))
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
-    implementation("io.github.jan-tennert.supabase:auth-kt")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt")
 
-    // Ktor 3.0.1
-    implementation("io.ktor:ktor-client-android:3.0.1")
-    implementation("io.ktor:ktor-client-core:3.0.1")
+    // Ktor
+    implementation("io.ktor:ktor-client-android:2.3.12")
+    implementation("io.ktor:ktor-client-core:2.3.12")
     
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")

@@ -9,7 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.endangeredanimals.Model.Account
 import com.example.endangeredanimals.Network.SupabaseInstance
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
