@@ -5,15 +5,20 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -40,10 +45,7 @@ fun ScannerScreen(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
-            Log.d("SCANNER_SCREEN", "Đã lấy được URI: $uri")
             viewModel.onImageSelected(uri)
-        } else {
-            Log.e("SCANNER_SCREEN", "Người dùng hủy chọn ảnh")
         }
     }
 
@@ -58,10 +60,8 @@ fun ScannerScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(300.dp)
-                .clickable {
-                    galleryLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
+                .clickable(enabled = uiState.imageUri == null) { // Chỉ cho bấm nếu chưa có ảnh
+                    galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
@@ -81,13 +81,28 @@ fun ScannerScreen(
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()
                     )
+
+                    // THÊM: NÚT "X" Ở GÓC TRÊN BÊN PHẢI
+                    IconButton(
+                        onClick = { viewModel.clearImage() },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .size(36.dp)
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Xóa ảnh",
+                            tint = Color.White
+                        )
+                    }
                 } else {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             painter = painterResource(id = R.drawable.add_image),
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
-                            // LẤY MÀU XÁM TỪ THEME CHO CHỮ PHỤ VÀ ICON
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -103,12 +118,9 @@ fun ScannerScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Nút phân tích AI (Tự động nhận màu Green500 nhờ Theme)
         Button(
-            onClick = { viewModel.analyzeImage() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
+            onClick = { viewModel.analyzeImage(context) },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(25.dp),
             enabled = uiState.imageUri != null && !uiState.isLoading
         ) {
@@ -124,15 +136,11 @@ fun ScannerScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Box hiển thị kết quả AI
         if (uiState.aiResult != null) {
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight(),
+                modifier = Modifier.fillMaxWidth().wrapContentHeight(),
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                // LẤY MÀU XÁM NHẠT CHO NỀN CARD KẾT QUẢ TỪ THEME
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Box(
@@ -150,7 +158,6 @@ fun ScannerScreen(
                             text = uiState.aiResult!!,
                             style = MaterialTheme.typography.titleLarge,
                             textAlign = TextAlign.Center,
-                            // MÀU CHỮ LẤY MÀU XANH CHÍNH (Green500)
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -159,34 +166,54 @@ fun ScannerScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { navController.navigate("animal_screen/sao_la_id") },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp),
-                    shape = RoundedCornerShape(25.dp)
-                ) {
-                    Text("Thông tin loài", color = MaterialTheme.colorScheme.onSurface)
-                }
+            // THÊM: LOGIC ĐỂ QUYẾT ĐỊNH XEM CÓ HIỂN THỊ 2 NÚT KHÔNG
+            // Dựa vào các câu cảnh báo cứng mà ta đã bắt AI nói trong Prompt
+            val isNotAnimal = uiState.aiResult!!.contains("Đây không phải là hình ảnh động vật", ignoreCase = true)
+            val isNotLocal = uiState.aiResult!!.contains("không phải động vật bản địa", ignoreCase = true)
 
-                Button(
-                    onClick = {
-                        val encodedUri = Uri.encode(uiState.imageUri.toString())
-                        val aiResultEncoded = Uri.encode(uiState.aiResult)
-                        navController.navigate("contribute_screen/$encodedUri/$aiResultEncoded")
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp),
-                    shape = RoundedCornerShape(25.dp)
+            // Chỉ hiển thị 2 nút chức năng nếu ĐÚNG là động vật VÀ CÓ ở Việt Nam
+            if (!isNotAnimal && !isNotLocal) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text("Đóng góp ảnh")
+                    OutlinedButton(
+                        onClick = {
+                            uiState.matchedAnimalId?.let { id ->
+                                navController.navigate("animal_screen/$id")
+                            }
+                        },
+                        // Nút bị mờ đi nếu đang tìm DB hoặc tìm không ra ID
+                        enabled = uiState.matchedAnimalId != null && !uiState.isSearchingDb,
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(25.dp)
+                    ) {
+                        if (uiState.isSearchingDb) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else if (uiState.matchedAnimalId == null) {
+                            Text("Chưa có Dữ liệu", fontSize = 12.sp) // Cảnh báo nhẹ nếu DB chưa có
+                        } else {
+                            Text("Thông tin loài", color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            val lines = uiState.aiResult!!.lines()
+
+                            val filteredInfo = lines.filter {
+                                it.startsWith("Tên loài:") || it.startsWith("Độ tự tin:")
+                            }.joinToString("\n")
+
+                            val encodedUri = Uri.encode(uiState.imageUri.toString())
+                            val aiResultEncoded = Uri.encode(filteredInfo)
+                            navController.navigate("contribute_screen/$encodedUri/$aiResultEncoded")
+                        },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(25.dp)
+                    ) {
+                        Text("Đóng góp ảnh")
+                    }
                 }
             }
         }

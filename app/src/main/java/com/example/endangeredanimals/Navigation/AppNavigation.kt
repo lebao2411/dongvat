@@ -1,5 +1,6 @@
 package com.example.endangeredanimals.Navigation
 
+import android.net.Uri
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -74,6 +75,28 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
 
         composable("contribution") {
             ContributeScreen(navController = navController, initialImageUri = null, aiSpeciesResult = null)
+        }
+
+        composable(
+            route = "contribute_screen/{imageUri}/{aiResult}",
+            arguments = listOf(
+                navArgument("imageUri") { type = NavType.StringType },
+                navArgument("aiResult") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            // Lấy dữ liệu dạng String từ URL
+            val encodedUri = backStackEntry.arguments?.getString("imageUri") ?: ""
+            val encodedAiResult = backStackEntry.arguments?.getString("aiResult") ?: ""
+
+            // Giải mã ngược lại thành text bình thường và Uri
+            val decodedUri = Uri.decode(encodedUri)
+            val decodedAiResult = Uri.decode(encodedAiResult)
+
+            ContributeScreen(
+                navController = navController,
+                initialImageUri = if (decodedUri.isNotBlank() && decodedUri != "null") Uri.parse(decodedUri) else null,
+                aiSpeciesResult = if (decodedAiResult.isNotBlank() && decodedAiResult != "null") decodedAiResult else null
+            )
         }
 
         composable(

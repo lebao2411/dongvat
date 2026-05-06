@@ -30,7 +30,7 @@ import com.example.endangeredanimals.ViewModel.ProfileViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.example.endangeredanimals.Network.SupabaseInstance
-import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.gotrue.auth
 
 @Composable
 fun ProfileScreen(

@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.endangeredanimals.Model.Animal
 import com.example.endangeredanimals.Model.Favorite
 import com.example.endangeredanimals.Network.SupabaseInstance
-import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

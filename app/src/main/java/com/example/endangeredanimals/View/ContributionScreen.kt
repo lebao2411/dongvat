@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
@@ -53,7 +54,9 @@ fun ContributeScreen(
     }
 
     // STATE MỚI: Lưu trữ mô tả của người dùng
-    var description by remember { mutableStateOf("") }
+    var description by remember {
+        mutableStateOf(if (!aiSpeciesResult.isNullOrBlank()) "$aiSpeciesResult\n\n" else "")
+    }
 
     val multiplePhotoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 5)
@@ -70,22 +73,34 @@ fun ContributeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
             .padding(16.dp)
-            .imePadding() // RẤT QUAN TRỌNG: Tự động đẩy nội dung lên khi bàn phím ảo xuất hiện
+            .imePadding()
     ) {
-        Text(
-            text = "Đóng góp hình ảnh",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 15.dp)
+        ) {
+            // Nút Back
+            IconButton(
+                onClick = { navController.popBackStack() },
+                modifier = Modifier.padding(end = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Quay lại",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+            }
 
-        if (aiSpeciesResult != null) {
+            // Chữ tiêu đề
             Text(
-                text = "Loài phát hiện: $aiSpeciesResult",
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                text = "Đóng góp hình ảnh",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
 
