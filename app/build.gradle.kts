@@ -84,6 +84,7 @@ dependencies {
     implementation(platform("io.github.jan-tennert.supabase:bom:2.6.1"))
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.github.jan-tennert.supabase:gotrue-kt")
+    implementation("io.github.jan-tennert.supabase:storage-kt")
 
     // Ktor
     implementation("io.ktor:ktor-client-android:2.3.12")
@@ -97,6 +98,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.2.0")
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
+    implementation("androidx.compose.material:material-icons-extended")
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)

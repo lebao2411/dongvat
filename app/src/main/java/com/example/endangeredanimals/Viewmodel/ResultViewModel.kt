@@ -3,8 +3,9 @@ package com.example.endangeredanimals.ViewModel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.endangeredanimals.Component.SupabaseHelper
 import com.example.endangeredanimals.Model.Animal
-import com.example.endangeredanimals.Network.SupabaseInstance
+import com.example.endangeredanimals.Component.SupabaseInstance
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,10 +13,9 @@ import kotlinx.coroutines.launch
 
 class ResultViewModel : ViewModel() {
 
-    private val STORAGE_BASE_URL = "https://ehtlxhoymxclqevouozp.supabase.co/storage/v1/object/public/animal_images/"
+    // ĐÃ XÓA STORAGE_BASE_URL
     private val client = SupabaseInstance.client
 
-    // Lưu từ khóa tìm kiếm để không bị mất khi quay lại màn hình
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
@@ -42,21 +42,18 @@ class ResultViewModel : ViewModel() {
             _isLoading.value = true
             try {
                 val normalizedQuery = query.lowercase().trim()
-                
+
                 val animals = client.from("animals")
                     .select()
                     .decodeList<Animal>()
-                
-                val results = animals.filter { 
+
+                // RÚT GỌN LOGIC MAP Ở ĐÂY
+                val results = animals.filter {
                     it.nameVn?.lowercase()?.contains(normalizedQuery) == true ||
-                    it.nameLatin?.lowercase()?.contains(normalizedQuery) == true ||
-                    it.animalGroup?.lowercase()?.contains(normalizedQuery) == true
+                            it.nameLatin?.lowercase()?.contains(normalizedQuery) == true ||
+                            it.animalGroup?.lowercase()?.contains(normalizedQuery) == true
                 }.map { animal ->
-                    if (!animal.imageUrl.isNullOrBlank() && !animal.imageUrl!!.startsWith("http")) {
-                        animal.copy(imageUrl = STORAGE_BASE_URL + animal.imageUrl)
-                    } else {
-                        animal
-                    }
+                    animal.copy(imageUrl = SupabaseHelper.getFullImageUrl(animal.imageUrl))
                 }
 
                 _searchResults.value = results

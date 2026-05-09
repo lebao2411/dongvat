@@ -3,8 +3,9 @@ package com.example.endangeredanimals.ViewModel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.endangeredanimals.Component.SupabaseHelper
 import com.example.endangeredanimals.Model.Animal
-import com.example.endangeredanimals.Network.SupabaseInstance
+import com.example.endangeredanimals.Component.SupabaseInstance
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,8 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class AnimalDetailViewModel : ViewModel() {
-
-    private val STORAGE_BASE_URL = "https://ehtlxhoymxclqevouozp.supabase.co/storage/v1/object/public/animal_images/"
 
     private val _animal = MutableStateFlow<Animal?>(null)
     val animal: StateFlow<Animal?> = _animal.asStateFlow()
@@ -55,12 +54,7 @@ class AnimalDetailViewModel : ViewModel() {
                 }
                 .decodeSingle<Animal>()
 
-            // Xử lý imageUrl nếu chỉ chứa tên file
-            val processedAnimal = if (!result.imageUrl.isNullOrBlank() && !result.imageUrl!!.startsWith("http")) {
-                result.copy(imageUrl = STORAGE_BASE_URL + result.imageUrl)
-            } else {
-                result
-            }
+            val processedAnimal = result.copy(imageUrl = SupabaseHelper.getFullImageUrl(result.imageUrl))
 
             _animal.value = processedAnimal
             Log.d("AnimalDetailVM", "Successfully fetched animal: ${processedAnimal.nameVn}")

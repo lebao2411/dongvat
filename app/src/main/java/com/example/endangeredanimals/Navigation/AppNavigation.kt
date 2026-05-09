@@ -73,6 +73,10 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
             ProfileScreen(navController = navController)
         }
 
+        composable("discuss") {
+            DiscussScreen(navController = navController)
+        }
+
         composable("contribution") {
             ContributeScreen(navController = navController, initialImageUri = null, aiSpeciesResult = null)
         }

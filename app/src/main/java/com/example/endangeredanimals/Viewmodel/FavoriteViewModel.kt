@@ -3,9 +3,10 @@ package com.example.endangeredanimals.ViewModel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.endangeredanimals.Component.SupabaseHelper
 import com.example.endangeredanimals.Model.Animal
 import com.example.endangeredanimals.Model.Favorite
-import com.example.endangeredanimals.Network.SupabaseInstance
+import com.example.endangeredanimals.Component.SupabaseInstance
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
@@ -16,8 +17,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class FavoriteViewModel : ViewModel() {
-
-    private val STORAGE_BASE_URL = "https://ehtlxhoymxclqevouozp.supabase.co/storage/v1/object/public/animal_images/"
 
     private val client = SupabaseInstance.client
 
@@ -60,7 +59,7 @@ class FavoriteViewModel : ViewModel() {
             val user = client.auth.currentSessionOrNull()?.user
             if (user == null) {
                 _favoriteAnimals.value = emptyList()
-                return@withContext // Thoát khỏi khối withContext
+                return@withContext
             }
 
             try {
@@ -75,12 +74,9 @@ class FavoriteViewModel : ViewModel() {
                         .select { filter { isIn("animalId", animalIds) } }
                         .decodeList<Animal>()
 
+                    // ĐÃ RÚT GỌN LẠI
                     val processedAnimals = animalsList.map { animal ->
-                        if (!animal.imageUrl.isNullOrBlank() && !animal.imageUrl!!.startsWith("http")) {
-                            animal.copy(imageUrl = STORAGE_BASE_URL + animal.imageUrl)
-                        } else {
-                            animal
-                        }
+                        animal.copy(imageUrl = SupabaseHelper.getFullImageUrl(animal.imageUrl))
                     }
 
                     _favoriteAnimals.value = processedAnimals
@@ -95,7 +91,7 @@ class FavoriteViewModel : ViewModel() {
     }
 
     fun toggleFavorite(animalId: String, isCurrentlyFavorite: Boolean, onComplete: () -> Unit) {
-        val user = client.auth.currentSessionOrNull()?.user
+        val user = client.auth.currentSessionOrNull()?.user // Sửa auth -> gotrue
         if (user == null) {
             onComplete()
             return
