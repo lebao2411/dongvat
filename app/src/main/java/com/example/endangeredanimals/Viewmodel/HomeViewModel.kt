@@ -3,8 +3,9 @@ package com.example.endangeredanimals.ViewModel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.endangeredanimals.Component.SupabaseHelper
 import com.example.endangeredanimals.Model.Animal
-import com.example.endangeredanimals.Network.SupabaseInstance
+import com.example.endangeredanimals.Component.SupabaseInstance
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,9 +14,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class HomeViewModel : ViewModel() {
-
-    // Đã cập nhật đúng link gốc và tên bucket 'animal_images' của bạn
-    private val STORAGE_BASE_URL = "https://ehtlxhoymxclqevouozp.supabase.co/storage/v1/object/public/animal_images/"
 
     val suggestedCategories = listOf(
         "Cầy", "Gà", "Nhông", "Vịt", "Thạch Sùng",
@@ -69,11 +67,7 @@ class HomeViewModel : ViewModel() {
                     .decodeList<Animal>()
 
                 val processedAnimals = animals.map { animal ->
-                    if (!animal.imageUrl.isNullOrBlank() && !animal.imageUrl!!.startsWith("http")) {
-                        animal.copy(imageUrl = STORAGE_BASE_URL + animal.imageUrl)
-                    } else {
-                        animal
-                    }
+                    animal.copy(imageUrl = SupabaseHelper.getFullImageUrl(animal.imageUrl))
                 }
 
                 _animalItems.value = processedAnimals

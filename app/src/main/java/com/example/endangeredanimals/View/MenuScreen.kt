@@ -23,12 +23,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
 
 @Composable
-fun MenuScreen(navController: NavHostController) {
+fun MenuScreen(
+    // TÁCH CHUYỂN TRANG: Dùng các callback function thay vì NavController
+    onNavigateToProfile: () -> Unit,
+    onNavigateToContribution: () -> Unit,
+    onNavigateToDiscuss: () -> Unit,
+    onLogout: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -40,7 +44,7 @@ fun MenuScreen(navController: NavHostController) {
             text = "Menu",
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding( top = 8.dp)
+            modifier = Modifier.padding(top = 8.dp)
         )
 
         // --- NHÓM TÀI KHOẢN ---
@@ -49,7 +53,7 @@ fun MenuScreen(navController: NavHostController) {
             icon = Icons.Default.Person,
             title = "Hồ sơ cá nhân",
             subtitle = "Quản lý thông tin và điểm số",
-            onClick = { navController.navigate("profile") }
+            onClick = onNavigateToProfile // Gọi callback
         )
 
         // --- NHÓM CỘNG ĐỒNG ---
@@ -57,20 +61,22 @@ fun MenuScreen(navController: NavHostController) {
         MenuItemCard(
             iconPainter = painterResource(R.drawable.animal),
             title = "Đóng góp ảnh",
-            onClick = { navController.navigate("contribution") }
+            onClick = onNavigateToContribution // Gọi callback
         )
-        Spacer(modifier = Modifier.height(7.dp)) // Khoảng cách 7.dp theo yêu cầu
+        Spacer(modifier = Modifier.height(7.dp))
 
+        // ĐÃ THÊM ĐIỀU HƯỚNG TỚI THẢO LUẬN
         MenuItemCard(
             iconPainter = painterResource(R.drawable.discuss),
             title = "Thảo luận cộng đồng",
-            onClick = { /* Điều hướng đến trang thảo luận */ })
+            onClick = onNavigateToDiscuss // Gọi callback
+        )
         Spacer(modifier = Modifier.height(7.dp))
 
         MenuItemCard(
             iconPainter = painterResource(R.drawable.leader_board),
             title = "Bảng xếp hạng",
-            onClick = { /* Điều hướng đến trang BXH */ }
+            onClick = { /* TODO: Thêm onNavigateToLeaderboard sau */ }
         )
 
         // --- NHÓM HỆ THỐNG ---
@@ -78,7 +84,7 @@ fun MenuScreen(navController: NavHostController) {
         MenuItemCard(
             icon = Icons.Default.Settings,
             title = "Cài đặt ứng dụng",
-            onClick = { /* Điều hướng đến trang cài đặt */ }
+            onClick = { /* TODO: Thêm onNavigateToSettings sau */ }
         )
         Spacer(modifier = Modifier.height(7.dp))
 
@@ -87,19 +93,13 @@ fun MenuScreen(navController: NavHostController) {
             title = "Đăng xuất",
             iconTint = Color.Red,
             textColor = Color.Red,
-            onClick = {
-                // Gọi hàm đăng xuất của Supabase tại đây
-                navController.navigate("login") {
-                    popUpTo(0)
-                }
-            }
+            onClick = onLogout // Gọi callback
         )
 
-        Spacer(modifier = Modifier.height(30.dp)) // Đệm dưới cùng để không bị che bởi BottomBar
+        Spacer(modifier = Modifier.height(30.dp))
     }
 }
 
-// Component hiển thị Tiêu đề cho từng nhóm (Tài khoản, Cộng đồng...)
 @Composable
 fun MenuSectionTitle(title: String) {
     Text(
@@ -123,10 +123,10 @@ fun MenuItemCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }, // Biến toàn bộ Card thành nút bấm
+            .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), // Tạo độ nổi
-        shape = RoundedCornerShape(12.dp) // Bo góc tròn trịa
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
             modifier = Modifier
@@ -134,7 +134,6 @@ fun MenuItemCard(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Khối chứa Icon (Tạo nền mờ cùng màu với Icon để nhìn xịn xò hơn)
             Box(
                 modifier = Modifier
                     .size(42.dp)
@@ -142,41 +141,16 @@ fun MenuItemCard(
                     .background(iconTint.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = iconTint,
-                    modifier = Modifier.size(24.dp)
-                )
+                Icon(imageVector = icon, contentDescription = title, tint = iconTint, modifier = Modifier.size(24.dp))
             }
-
             Spacer(modifier = Modifier.width(16.dp))
-
-            // Khối chứa Text (Title & Subtitle)
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = textColor
-                )
-                // Nếu truyền subtitle vào thì mới hiển thị
+                Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = textColor)
                 if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        fontSize = 12.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
+                    Text(text = subtitle, fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(top = 2.dp))
                 }
             }
-
-            // Mũi tên chỉ hướng bên phải
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Đi tiếp",
-                tint = Color.LightGray
-            )
+            Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Đi tiếp", tint = Color.LightGray)
         }
     }
 }
@@ -211,47 +185,28 @@ fun MenuItemCard(
                     .background(iconTint.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                // SỬ DỤNG PAINTER Ở ĐÂY
-                Icon(
-                    painter = iconPainter,
-                    contentDescription = title,
-                    tint = iconTint,
-                    modifier = Modifier.size(24.dp)
-                )
+                Icon(painter = iconPainter, contentDescription = title, tint = iconTint, modifier = Modifier.size(24.dp))
             }
-
             Spacer(modifier = Modifier.width(16.dp))
-
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = textColor
-                )
+                Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = textColor)
                 if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        fontSize = 12.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
+                    Text(text = subtitle, fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(top = 2.dp))
                 }
             }
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Đi tiếp",
-                tint = Color.LightGray
-            )
+            Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Đi tiếp", tint = Color.LightGray)
         }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun PreviewMenuScreen( ) {
-    val fakeNavController = rememberNavController()
-
-    MenuScreen(navController = fakeNavController)
+fun PreviewMenuScreen() {
+    // Không cần FakeNavController rườm rà nữa, chỉ cần truyền lambda rỗng
+    MenuScreen(
+        onNavigateToProfile = {},
+        onNavigateToContribution = {},
+        onNavigateToDiscuss = {},
+        onLogout = {}
+    )
 }

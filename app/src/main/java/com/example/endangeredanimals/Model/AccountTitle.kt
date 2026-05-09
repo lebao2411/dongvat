@@ -1,5 +1,8 @@
 package com.example.endangeredanimals.Model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class AccountTitle(
     val accountTitleId: Long,
     val accountId: String?,

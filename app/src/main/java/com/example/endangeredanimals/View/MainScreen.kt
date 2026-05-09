@@ -79,7 +79,24 @@ fun MainScreen(rootNavController: NavHostController) {
             composable("home") { HomeScreen(navController = rootNavController) }
             composable("scan") { ScannerScreen(navController = rootNavController) }
             composable("favorite") { FavoriteScreen(navController = rootNavController) }
-            composable("menu") { MenuScreen(navController = rootNavController) }
+            composable("menu") {
+                MenuScreen(
+                    onNavigateToProfile = {
+                        rootNavController.navigate("profile")
+                    },
+                    onNavigateToContribution = {
+                        rootNavController.navigate("contribution")
+                    },
+                    onNavigateToDiscuss = {
+                        rootNavController.navigate("discuss")
+                    },
+                    onLogout = {
+                        rootNavController.navigate("login") {
+                            popUpTo(0)
+                        }
+                    }
+                )
+            }
         }
     }
 }
