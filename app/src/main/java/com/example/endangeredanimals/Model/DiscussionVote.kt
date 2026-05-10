@@ -9,3 +9,11 @@ data class DiscussionVote(
     val accountId: String?,
     val voteType: String?
 )
+
+// THÊM CLASS NÀY: Dùng để đẩy dữ liệu lên (Bỏ qua voteId để Supabase tự sinh ra)
+@Serializable
+data class DiscussionVoteInsert(
+    val discussionId: Long?,
+    val accountId: String?,
+    val voteType: String?
+)

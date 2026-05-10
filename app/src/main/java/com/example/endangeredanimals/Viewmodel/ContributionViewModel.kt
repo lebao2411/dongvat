@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.endangeredanimals.Component.AnimalAiService
 import com.example.endangeredanimals.Component.SupabaseInstance
+import com.example.endangeredanimals.Model.CommunityDiscussion
 import com.example.endangeredanimals.Model.Contribution
 import com.example.endangeredanimals.View.ContributionImage
 import io.github.jan.supabase.gotrue.auth
@@ -23,6 +24,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonElement
+import org.json.JSONArray
 import java.io.InputStream
 import java.util.UUID
 
@@ -52,7 +55,6 @@ class ContributionViewModel : ViewModel() {
 
     // --- HÀM MỚI: UPLOAD LÊN SUPABASE ---
     fun uploadContributions(context: Context, description: String, aiResult: String?, onSuccess: () -> Unit) {
-        // Chỉ lấy những ảnh hợp lệ và đã quét xong
         val validImages = _images.value.filter { it.isValid && !it.isLoading }
         if (validImages.isEmpty()) return
 
@@ -60,42 +62,88 @@ class ContributionViewModel : ViewModel() {
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // 1. Lấy ID người dùng hiện tại
                 val session = SupabaseInstance.client.auth.currentSessionOrNull()
                 val accountId = session?.user?.id ?: throw Exception("Bạn chưa đăng nhập!")
 
-                // 2. Upload từng ảnh lên Storage và lưu Database
+                // 1. KHAI BÁO CÁC BIẾN Ở NGOÀI CÙNG ĐỂ GIỮ STATE
+                var finalStatus = "pending"
+                var finalAiPrediction: String? = null
+                var finalAnimalId: String? = null
+
+                // THÊM 2 BIẾN NÀY ĐỂ DÀNH CHO BÌNH LUẬN AI
+                var aiTop1Species: String? = null
+                var aiTop1Confidence: Int = 0
+
+                // 2. BỘ NÃO XỬ LÝ
+                if (!aiResult.isNullOrBlank()) {
+                    try {
+                        val jsonArray = JSONArray(aiResult)
+                        if (jsonArray.length() > 0) {
+                            val top1 = jsonArray.getJSONObject(0)
+
+                            // Gán giá trị cho 2 biến global vừa tạo
+                            aiTop1Confidence = top1.getInt("confidence")
+                            aiTop1Species = top1.getString("speciesName").substringBefore(" (")
+
+                            if (aiTop1Confidence >= 85) {
+                                finalStatus = "approved"
+                                finalAnimalId = aiTop1Species
+                                finalAiPrediction = null
+                            } else {
+                                finalStatus = "discussing"
+                                finalAnimalId = null
+                                finalAiPrediction = aiResult
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        finalStatus = "pending"
+                        finalAiPrediction = aiResult
+                    }
+                }
+
+                // 3. Upload từng ảnh lên Storage và lưu Database
                 for (image in validImages) {
                     val inputStream = context.contentResolver.openInputStream(image.uri)
                     val bytes = inputStream?.readBytes() ?: continue
                     inputStream.close()
 
-                    // Tạo tên file duy nhất: accountId_timestamp.jpg
                     val fileName = "${accountId}_${System.currentTimeMillis()}.jpg"
 
-                    // Ghi chú: Bạn phải tạo 1 bucket tên là "contribution_images" (để public) trên Supabase nhé
                     SupabaseInstance.client.storage.from("contribution_images").upload(fileName, bytes)
                     val publicUrl = SupabaseInstance.client.storage.from("contribution_images").publicUrl(fileName)
 
-                    // 3. Khởi tạo Model để đẩy lên Database
                     val newContribution = Contribution(
-                        contributionId = UUID.randomUUID().toString(), // Tạo ID ngẫu nhiên
+                        contributionId = UUID.randomUUID().toString(),
                         accountId = accountId,
                         imageUrl = publicUrl,
-                        latitude = null, // Có thể mở rộng lấy từ EXIF sau này
+                        latitude = null,
                         longitude = null,
-                        aiPrediction = aiResult, // Truyền thẳng chuỗi AI vào
-                        status = "pending",
+                        aiPrediction = finalAiPrediction as JsonElement?,
+                        status = finalStatus,
                         userNote = description.ifBlank { null },
-                        finalAnimalId = null,
-                        createdAt = null // Để trống, Supabase sẽ tự động lấy giờ hiện tại
+                        finalAnimalId = finalAnimalId,
+                        createdAt = null
                     )
 
-                    // Insert vào bảng
+                    // Insert bài đăng gốc
                     SupabaseInstance.client.from("contributions").insert(newContribution)
+
+                    // 4. CHÈN BÌNH LUẬN AI (NẾU CÓ)
+                    // Dùng biến aiTop1Species và aiTop1Confidence ở đây thì sẽ không bao giờ lỗi
+                    if (finalStatus == "discussing" && aiTop1Species != null) {
+                        val aiComment = CommunityDiscussion(
+                            discussionId = 0,
+                            contributionId = newContribution.contributionId,
+                            accountId = "SYSTEM_AI",
+                            comment = "AI dự đoán đây là: $aiTop1Species (Độ tự tin: ${aiTop1Confidence}%).",
+                            suggestedAnimalId = null, // Chờ user vote
+                            createdAt = null
+                        )
+                        SupabaseInstance.client.from("community_discussions").insert(aiComment)
+                    }
                 }
 
-                // Chuyển về luồng UI để báo hoàn thành
                 withContext(Dispatchers.Main) {
                     _isUploading.value = false
                     onSuccess()
