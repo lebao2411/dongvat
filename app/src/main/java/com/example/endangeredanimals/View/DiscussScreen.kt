@@ -1,5 +1,6 @@
 package com.example.endangeredanimals.View
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,7 +38,6 @@ import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-// Model lưu đề xuất linh động lấy từ JSON AI
 data class AnimalSuggestion(val vnName: String, val sciName: String, val confidence: Int)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,6 +49,10 @@ fun DiscussScreen(
     val contributions by viewModel.contributions.collectAsState()
     val currentDiscussions by viewModel.currentDiscussions.collectAsState()
     val voteData by viewModel.voteData.collectAsState()
+
+    // HỨNG TỪ ĐIỂN TỪ VIEWMODEL
+    val animalNamesMap by viewModel.animalNamesMap.collectAsState()
+
     val isLoading by viewModel.isLoading.collectAsState()
     var selectedContribution by remember { mutableStateOf<Contribution?>(null) }
 
@@ -85,6 +90,7 @@ fun DiscussScreen(
                 contribution = selectedContribution!!,
                 discussions = currentDiscussions,
                 voteDataMap = voteData,
+                animalNamesMap = animalNamesMap, // TRUYỀN TỪ ĐIỂN VÀO BOTTOM SHEET
                 viewModel = viewModel,
                 onDismiss = { selectedContribution = null }
             )
@@ -148,9 +154,12 @@ fun DiscussionBottomSheet(
     contribution: Contribution,
     discussions: List<CommunityDiscussion>,
     voteDataMap: Map<Long, VoteData>,
+    animalNamesMap: Map<String, String>, // NHẬN TỪ ĐIỂN
     viewModel: DiscussViewModel,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -161,7 +170,6 @@ fun DiscussionBottomSheet(
 
             LazyColumn(modifier = Modifier.weight(1f)) {
                 items(discussions) { discussion ->
-                    // PHÂN LUỒNG: Nếu là hệ thống thì hiện Card xịn, nếu user thì hiện Card thường
                     if (discussion.accountId == "SYSTEM_AI") {
                         AiSystemCommentCard(
                             comment = discussion,
@@ -172,17 +180,21 @@ fun DiscussionBottomSheet(
                         CommentItem(
                             discussion = discussion,
                             voteData = voteDataMap[discussion.discussionId],
+                            animalNamesMap = animalNamesMap, // TRUYỀN XUỐNG TỪNG COMMENT
                             onVote = { isLike -> viewModel.toggleVote(discussion.discussionId, isLike) }
                         )
                     }
                 }
             }
 
-            // Truyền chuỗi JSON vào để hiện Đề xuất AI
             CommentInputArea(
                 aiJsonString = contribution.aiPrediction?.toString(),
-                onSend = { text, animalId ->
-                    viewModel.sendComment(contribution.contributionId, text, animalId) { }
+                onSend = { text, sciName, vnName ->
+                    viewModel.sendComment(contribution.contributionId, text, sciName, vnName) { errorMsg ->
+                        if (errorMsg != null) {
+                            Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                        }
+                    }
                 }
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -190,7 +202,6 @@ fun DiscussionBottomSheet(
     }
 }
 
-// GIAO DIỆN CHUYÊN BIỆT CHO BÌNH LUẬN CỦA AI (Nổi bật, viền màu, icon Robot)
 @Composable
 fun AiSystemCommentCard(
     comment: CommunityDiscussion,
@@ -217,9 +228,13 @@ fun AiSystemCommentCard(
     }
 }
 
-// GIAO DIỆN CHO NGƯỜI DÙNG BÌNH THƯỜNG
 @Composable
-fun CommentItem(discussion: CommunityDiscussion, voteData: VoteData?, onVote: (Boolean?) -> Unit) {
+fun CommentItem(
+    discussion: CommunityDiscussion,
+    voteData: VoteData?,
+    animalNamesMap: Map<String, String>, // NHẬN TỪ ĐIỂN
+    onVote: (Boolean?) -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -234,30 +249,30 @@ fun CommentItem(discussion: CommunityDiscussion, voteData: VoteData?, onVote: (B
 
             Text(text = discussion.comment, fontSize = 15.sp)
 
-            // Hiển thị chip nếu người dùng có đề xuất động vật
+            // DỊCH ID THÀNH TÊN TIẾNG VIỆT Ở ĐÂY
             if (!discussion.suggestedAnimalId.isNullOrBlank()) {
+                val displayName = animalNamesMap[discussion.suggestedAnimalId] ?: "Đang tải tên loài..."
+
                 Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.padding(top = 8.dp)
                 ) {
-                    Text("Đề xuất: ${discussion.suggestedAnimalId}", fontSize = 12.sp, modifier = Modifier.padding(6.dp))
+                    Text("Đề xuất: $displayName", fontSize = 12.sp, modifier = Modifier.padding(6.dp))
                 }
             }
 
-            // Giao diện Vote tự cập nhật Mượt Mà
             CommentActionRow(initialData = voteData, onVote = onVote)
         }
     }
 }
 
 @Composable
-fun CommentInputArea(aiJsonString: String?, onSend: (String, String?) -> Unit) {
+fun CommentInputArea(aiJsonString: String?, onSend: (String, String?, String?) -> Unit) {
     var inputText by remember { mutableStateOf("") }
     var selectedAnimal by remember { mutableStateOf<AnimalSuggestion?>(null) }
     var expandedDropdown by remember { mutableStateOf(false) }
 
-    // BÓC TÁCH JSON THỰC TẾ LÀM ĐỀ XUẤT CHO DROPDOWN
     val aiSuggestions = remember(aiJsonString) {
         val list = mutableListOf<AnimalSuggestion>()
         if (!aiJsonString.isNullOrBlank()) {
@@ -310,7 +325,6 @@ fun CommentInputArea(aiJsonString: String?, onSend: (String, String?) -> Unit) {
                     } else {
                         aiSuggestions.forEach { animal ->
                             DropdownMenuItem(
-                                // Hiện thêm độ tự tin % để user dễ chọn
                                 text = { Text("${animal.vnName} - AI: ${animal.confidence}%") },
                                 onClick = {
                                     selectedAnimal = animal
@@ -333,8 +347,9 @@ fun CommentInputArea(aiJsonString: String?, onSend: (String, String?) -> Unit) {
 
             IconButton(
                 onClick = {
-                    onSend(inputText, selectedAnimal?.sciName)
-                    inputText = "" // Xóa rỗng sau khi gửi
+                    // TRUYỀN CẢ sciName VÀ vnName LÊN VIEWMODEL
+                    onSend(inputText, selectedAnimal?.sciName, selectedAnimal?.vnName)
+                    inputText = ""
                     selectedAnimal = null
                 },
                 enabled = inputText.isNotBlank() || selectedAnimal != null
@@ -347,21 +362,19 @@ fun CommentInputArea(aiJsonString: String?, onSend: (String, String?) -> Unit) {
 
 @Composable
 fun CommentActionRow(initialData: VoteData?, onVote: (Boolean?) -> Unit) {
-    // Lưu State cục bộ để đổi màu và số ngay lập tức khi bấm
     var localLikes by remember(initialData) { mutableStateOf(initialData?.likes ?: 0) }
     var localDislikes by remember(initialData) { mutableStateOf(initialData?.dislikes ?: 0) }
     var localVote by remember(initialData) { mutableStateOf(initialData?.userVote ?: VoteState.NONE) }
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-        // NÚT LIKE
         IconButton(onClick = {
             if (localVote == VoteState.LIKE) {
                 localVote = VoteState.NONE; localLikes--
-                onVote(null) // Xóa vote
+                onVote(null)
             } else {
                 if (localVote == VoteState.DISLIKE) localDislikes--
                 localVote = VoteState.LIKE; localLikes++
-                onVote(true) // Vote Like
+                onVote(true)
             }
         }) {
             Icon(
@@ -374,15 +387,14 @@ fun CommentActionRow(initialData: VoteData?, onVote: (Boolean?) -> Unit) {
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        // NÚT DISLIKE
         IconButton(onClick = {
             if (localVote == VoteState.DISLIKE) {
                 localVote = VoteState.NONE; localDislikes--
-                onVote(null) // Xóa vote
+                onVote(null)
             } else {
                 if (localVote == VoteState.LIKE) localLikes--
                 localVote = VoteState.DISLIKE; localDislikes++
-                onVote(false) // Vote Dislike
+                onVote(false)
             }
         }) {
             Icon(

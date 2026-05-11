@@ -66,8 +66,11 @@ class LoginViewModel : ViewModel() {
         googleSignInClient: GoogleSignInClient
     ) {
         _loginUIState.value = LoginUIState.Loading
-        val signInIntent = googleSignInClient.signInIntent
-        launcher.launch(signInIntent)
+
+        googleSignInClient.signOut().addOnCompleteListener {
+            val signInIntent = googleSignInClient.signInIntent
+            launcher.launch(signInIntent)
+        }
     }
 
     fun handleGoogleSignInResult(data: Intent?) {
