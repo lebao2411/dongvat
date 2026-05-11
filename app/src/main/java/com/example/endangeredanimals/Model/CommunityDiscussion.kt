@@ -11,3 +11,11 @@ data class CommunityDiscussion(
     val suggestedAnimalId: String?,
     val createdAt: String?
 )
+
+@Serializable
+data class CommunityDiscussionInsert(
+    val contributionId: String?,
+    val accountId: String?,
+    val comment: String,
+    val suggestedAnimalId: String?
+)

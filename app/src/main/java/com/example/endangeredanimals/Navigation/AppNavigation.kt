@@ -55,8 +55,21 @@ fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifie
         }
 
         composable("login") {
-            LogInScreen(navController = navController)
+            LoginScreen(
+                onLoginSuccess = {
+                    navController.navigate("main_screen") {
+                        popUpTo(0)
+                    }
+                },
+                onNavigateToSignUp = {
+                    navController.navigate("signup")
+                },
+                onNavigateToForgotPassword = {
+                    navController.navigate("forgotpassword")
+                }
+            )
         }
+
         composable("signup") {
             SignUpScreen(navController = navController)
         }
