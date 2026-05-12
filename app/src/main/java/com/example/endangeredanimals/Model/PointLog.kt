@@ -11,3 +11,11 @@ data class PointLog(
     val referenceId: String?,
     val createdAt: String?
 )
+
+@Serializable
+data class PointLogInsert(
+    val accountId: String,
+    val actionType: String,
+    val points: Int,
+    val referenceId: String?
+)

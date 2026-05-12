@@ -50,6 +50,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ui.BottomNavBackground
+import com.example.endangeredanimals.ui.Green100
+import com.example.endangeredanimals.ui.Neutral100
 import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -60,6 +62,7 @@ fun MainScreen(rootNavController: NavHostController) {
     val bottomNavController = rememberNavController()
 
     Scaffold(
+        containerColor = Neutral100,
         topBar = {
             MainTopAppBar(
                 onSearchNavigate = {
@@ -100,7 +103,7 @@ fun MainScreen(rootNavController: NavHostController) {
                         rootNavController.navigate("discuss")
                     },
                     onLogout = {
-                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        scope.launch(Dispatchers.IO) {
                             try {
                                 // 1. Xóa trí nhớ của Google
                                 val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
@@ -109,8 +112,16 @@ fun MainScreen(rootNavController: NavHostController) {
                                 val googleSignInClient = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, gso)
                                 googleSignInClient.signOut()
 
-                                // 2. Đăng xuất khỏi Supabase.
-                                com.example.endangeredanimals.Network.SupabaseInstance.client.auth.signOut()
+                                // 2. Đăng xuất khỏi Supabase
+                                com.example.endangeredanimals.Component.SupabaseInstance.client.auth.signOut()
+
+                                // 3. CHỈ CẦN ĐIỀU HƯỚNG VỀ LOGIN VÀ XÓA BACKSTACK
+                                withContext(Dispatchers.Main) {
+                                    rootNavController.navigate("login") {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                }
+
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             }

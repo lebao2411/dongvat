@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.endangeredanimals.Model.Account
-import com.example.endangeredanimals.Network.SupabaseInstance
+import com.example.endangeredanimals.Component.SupabaseInstance
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -62,7 +62,7 @@ class ProfileViewModel : ViewModel() {
     private suspend fun fetchUserDataFromSupabase() {
         val user = client.auth.currentSessionOrNull()?.user
         if (user == null) {
-            _profileState.value = ProfileState.Error("Vui lòng đăng nhập lại.")
+            // Không đặt lỗi ở đây nếu là lúc mới khởi tạo để tránh hiện Toast lỗi vô duyên
             return
         }
 

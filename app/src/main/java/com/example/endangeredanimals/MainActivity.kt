@@ -8,11 +8,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.Navigation.AppNavigation
-import com.example.endangeredanimals.Network.SupabaseInstance
+import com.example.endangeredanimals.Component.SupabaseInstance
 import com.example.endangeredanimals.ui.EndangeredAnimalsTheme
 import io.github.jan.supabase.gotrue.SessionStatus
 import io.github.jan.supabase.gotrue.auth
-import java.util.UUID
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,41 +30,38 @@ fun App() {
     val client = SupabaseInstance.client
     val sessionStatus by client.auth.sessionStatus.collectAsState()
 
-    // GIẢI PHÁP: TẠO CHÌA KHÓA ĐỘC NHẤT CHO TỪNG TRẠNG THÁI VÀ TÀI KHOẢN
-    val appKey = remember(sessionStatus) {
+    val navController = rememberNavController()
+
+    // Theo dõi trạng thái đăng nhập để điều hướng tự động
+    LaunchedEffect(sessionStatus) {
         when (sessionStatus) {
             is SessionStatus.Authenticated -> {
-                // Nếu đăng nhập, dùng ID của User làm chìa khóa
-                val userId = (sessionStatus as SessionStatus.Authenticated).session.user?.id
-                userId ?: UUID.randomUUID().toString() // Fallback an toàn
+                // Nếu đang ở login/signup thì mới nhảy vào main
+                val currentRoute = navController.currentBackStackEntry?.destination?.route
+                if (currentRoute == "login" || currentRoute == null) {
+                    navController.navigate("main_screen") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             }
-            else -> {
-                // Nếu đăng xuất, tạo một chìa khóa ngẫu nhiên mới toanh
-                UUID.randomUUID().toString()
+            is SessionStatus.NotAuthenticated -> {
+                navController.navigate("login") {
+                    popUpTo(0) { inclusive = true }
+                }
             }
+            else -> {}
         }
     }
 
-    // Dùng appKey thay vì isAuthenticated (boolean)
-    key(appKey) {
-        val navController = rememberNavController() // Mỗi chìa khóa mới sẽ có một NavController mới hoàn toàn
-        var startDestination by remember { mutableStateOf<String?>(null) }
-
-        LaunchedEffect(sessionStatus) {
-            startDestination = when (sessionStatus) {
-                is SessionStatus.Authenticated -> "main_screen"
-                is SessionStatus.NotAuthenticated -> "login"
-                else -> null
-            }
-        }
-
-        if (startDestination != null) {
-            AppNavigation(
-                startDestination = startDestination!!,
-                navController = navController
-            )
-        }
+    // Xác định màn hình khởi đầu (chỉ dùng cho lần đầu load app)
+    val startDestination = remember {
+        if (client.auth.currentSessionOrNull() != null) "main_screen" else "login"
     }
+
+    AppNavigation(
+        startDestination = startDestination,
+        navController = navController
+    )
 }
 
 @Preview(showBackground = true)

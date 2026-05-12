@@ -30,10 +30,12 @@ class FavoriteViewModel : ViewModel() {
     val isRefreshing = _isRefreshing.asStateFlow()
 
     init {
-        if (_favoriteAnimals.value.isEmpty()) {
+        val user = client.auth.currentSessionOrNull()?.user
+        if (user != null) {
             loadFavoriteAnimals()
         } else {
             _isLoading.value = false
+            _favoriteAnimals.value = emptyList()
         }
     }
 

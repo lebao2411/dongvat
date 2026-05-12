@@ -11,7 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.endangeredanimals.Component.AnimalAiService
 import com.example.endangeredanimals.Model.Animal // Import Model của bạn
-import com.example.endangeredanimals.Network.SupabaseInstance // Import Supabase của bạn
+import com.example.endangeredanimals.Component.SupabaseInstance // Import Supabase của bạn
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

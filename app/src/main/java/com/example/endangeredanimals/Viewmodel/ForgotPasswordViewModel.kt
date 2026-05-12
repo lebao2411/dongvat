@@ -3,7 +3,7 @@ package com.example.endangeredanimals.ViewModel
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.endangeredanimals.Network.SupabaseInstance
+import com.example.endangeredanimals.Component.SupabaseInstance
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.OtpType
 import kotlinx.coroutines.flow.MutableStateFlow
