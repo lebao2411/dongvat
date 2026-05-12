@@ -36,6 +36,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.LoginUIState
 import com.example.endangeredanimals.ViewModel.LoginViewModel
+import com.example.endangeredanimals.ui.Green100
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 
@@ -99,7 +100,7 @@ fun LoginScreen(
         else -> {}
     }
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp).background(Color.White),
             horizontalAlignment = Alignment.CenterHorizontally,

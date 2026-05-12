@@ -25,13 +25,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.compose.ui.res.painterResource
+import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.ProfileState
 import com.example.endangeredanimals.ViewModel.ProfileViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.example.endangeredanimals.Network.SupabaseInstance
+import com.example.endangeredanimals.Component.SupabaseInstance
 import io.github.jan.supabase.gotrue.auth
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     navController: NavController,
@@ -77,135 +80,178 @@ fun ProfileScreen(
         }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        PullToRefreshBox(
-            state = pullToRefreshState,
-            isRefreshing = isRefreshing,
-            onRefresh = { profileViewModel.refresh() },
-            modifier = Modifier.fillMaxSize(),
-            indicator = {
-                PullToRefreshDefaults.Indicator(
-                    state = pullToRefreshState,
-                    isRefreshing = isRefreshing,
-                    containerColor = Color.White,
-                    color = Color(0xFF37ab3c),
-                    modifier = Modifier.align(Alignment.TopCenter)
-                )
-            }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Hồ sơ cá nhân", fontWeight = FontWeight.Bold, color = Color.White) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Quay lại", tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primary)
+            )
+        }
+    ) { paddingValues ->
+        Surface(
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
+            color = MaterialTheme.colorScheme.background
         ) {
-            if (account == null || profileState is ProfileState.Loading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color(0xFF37ab3c))
+            PullToRefreshBox(
+                state = pullToRefreshState,
+                isRefreshing = isRefreshing,
+                onRefresh = { profileViewModel.refresh() },
+                modifier = Modifier.fillMaxSize(),
+                indicator = {
+                    PullToRefreshDefaults.Indicator(
+                        state = pullToRefreshState,
+                        isRefreshing = isRefreshing,
+                        containerColor = Color.White,
+                        color = Color(0xFF37ab3c),
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
                 }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                if (account == null || profileState is ProfileState.Loading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xFF37ab3c))
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        // HIỂN THỊ ĐIỂM SỐ VÀ DANH HIỆU
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.AccountCircle,
-                                contentDescription = "Avatar",
-                                modifier = Modifier.size(100.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                            ScoreCard(
+                                modifier = Modifier.weight(1f),
+                                label = "Điểm cống hiến",
+                                score = account.score,
+                                icon = painterResource(id = R.drawable.favorite)
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Text(
-                                text = account.email,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = Color.Gray
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            OutlinedTextField(
-                                value = userName,
-                                onValueChange = { userName = it },
-                                label = { Text("Tên người dùng") },
-                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(
-                                onClick = { profileViewModel.updateUserInfo(userName) },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            
+                            Card(
+                                modifier = Modifier.weight(1f).height(120.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                             ) {
-                                Text("Lưu thay đổi")
+                                Column(
+                                    modifier = Modifier.padding(16.dp).fillMaxSize(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(Icons.Default.EmojiEvents, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(text = account.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.Center)
+                                    Text(text = "Danh hiệu", fontSize = 12.sp, color = Color.Gray)
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AccountCircle,
+                                    contentDescription = "Avatar",
+                                    modifier = Modifier.size(100.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Text(
+                                    text = account.email,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Color.Gray
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = userName,
+                                    onValueChange = { userName = it },
+                                    label = { Text("Tên người dùng") },
+                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { profileViewModel.updateUserInfo(userName) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Text("Lưu thay đổi")
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Button(
+                                onClick = { navController.navigate("changepassword") },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Text("Đổi mật khẩu")
+                            }
+
+                            Button(
+                                onClick = {
+                                    profileViewModel.onOpenDeleteDialog()
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Xóa tài khoản")
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Button(
-                            onClick = { navController.navigate("changepassword_screen") },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Text("Đổi mật khẩu")
-                        }
-
-                        Button(
-                            onClick = {
-                                profileViewModel.onOpenDeleteDialog()
-                                navController.navigate("login") {
-                                    popUpTo(0) { inclusive = true }
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("Xóa tài khoản")
-                        }
-                    }
                 }
-            }
 
-            if (profileViewModel.showDeleteConfirmation) {
-                AlertDialog(
-                    onDismissRequest = { profileViewModel.onCloseDeleteDialog() },
-                    title = { Text("Xác nhận xóa tài khoản") },
-                    text = { Text("Bạn có chắc chắn muốn xóa tài khoản vĩnh viễn không? Hành động này không thể hoàn tác.") },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                profileViewModel.onCloseDeleteDialog()
-                                profileViewModel.deleteAccount(googleSignInClient)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("Xóa")
+                if (profileViewModel.showDeleteConfirmation) {
+                    AlertDialog(
+                        onDismissRequest = { profileViewModel.onCloseDeleteDialog() },
+                        title = { Text("Xác nhận xóa tài khoản") },
+                        text = { Text("Bạn có chắc chắn muốn xóa tài khoản vĩnh viễn không? Hành động này không thể hoàn tác.") },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    profileViewModel.onCloseDeleteDialog()
+                                    profileViewModel.deleteAccount(googleSignInClient)
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Xóa")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { profileViewModel.onCloseDeleteDialog() }) {
+                                Text("Hủy")
+                            }
                         }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { profileViewModel.onCloseDeleteDialog() }) {
-                            Text("Hủy")
-                        }
-                    }
-                )
+                    )
+                }
             }
         }
     }

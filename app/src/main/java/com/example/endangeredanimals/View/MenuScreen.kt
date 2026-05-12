@@ -24,10 +24,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.endangeredanimals.R
+import com.example.endangeredanimals.ui.Neutral100
+import com.example.endangeredanimals.ui.Neutral200
+import com.example.endangeredanimals.ui.Neutral50
 
 @Composable
 fun MenuScreen(
-    // TÁCH CHUYỂN TRANG: Dùng các callback function thay vì NavController
     onNavigateToProfile: () -> Unit,
     onNavigateToContribution: () -> Unit,
     onNavigateToDiscuss: () -> Unit,
@@ -36,7 +38,7 @@ fun MenuScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8F9FA))
+            .background(Neutral50)
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {

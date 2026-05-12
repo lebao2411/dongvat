@@ -9,9 +9,11 @@ import com.example.endangeredanimals.Model.Contribution
 import com.example.endangeredanimals.Model.DiscussionVote
 import com.example.endangeredanimals.Model.DiscussionVoteInsert
 import com.example.endangeredanimals.Model.CommunityDiscussionInsert
+import com.example.endangeredanimals.Model.PointLogInsert
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,7 +42,15 @@ class DiscussViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
 
-    init { fetchDiscussingContributions() }
+    init {
+        val user = SupabaseInstance.client.auth.currentSessionOrNull()?.user
+        if (user != null) {
+            fetchDiscussingContributions()
+        } else {
+            _contributions.value = emptyList()
+            _isLoading.value = false
+        }
+    }
 
     fun fetchDiscussingContributions() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -58,6 +68,9 @@ class DiscussViewModel : ViewModel() {
     fun fetchDiscussionsForContribution(contributionId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                // Reset dữ liệu vote cũ trước khi tải thảo luận mới
+                _voteData.value = emptyMap()
+
                 val discussions = SupabaseInstance.client.from("community_discussions")
                     .select { filter { eq("contributionId", contributionId) } }
                     .decodeList<CommunityDiscussion>()
@@ -226,21 +239,38 @@ class DiscussViewModel : ViewModel() {
                         else -> 0
                     }
 
-                    if (pointsToChange != 0) {
+                    if (pointsToChange != 0 && authorId != null) {
                         try {
-                            // Gọi hàm RPC để cộng điểm, xét danh hiệu và ghi PointLog
-                            SupabaseInstance.client.postgrest.rpc(
-                                function = "update_user_score_and_title",
-                                parameters = mapOf(
-                                    "target_account_id" to authorId,
-                                    "points_to_add" to pointsToChange,
-                                    "action_type" to actionType,
-                                    "ref_id" to discussionId.toString()
-                                )
+                            // 1. Ghi nhật ký điểm trực tiếp vào bảng point_logs
+                            val newLog = PointLogInsert(
+                                accountId = authorId,
+                                actionType = actionType,
+                                points = pointsToChange,
+                                referenceId = discussionId.toString()
                             )
-                            Log.d("ScoreTest", "Đã cập nhật $pointsToChange điểm cho $authorId. Lý do: $actionType")
+                            SupabaseInstance.client.from("point_logs").insert(newLog)
+
+                            // 2. Cập nhật tổng điểm trực tiếp vào bảng accounts
+                            // Lấy điểm hiện tại trước (để đảm bảo chính xác)
+                            val currentAccount = SupabaseInstance.client.from("accounts")
+                                .select(Columns.list("score")) {
+                                    filter { eq("userId", authorId) }
+                                }
+                                .decodeSingle<com.example.endangeredanimals.Model.Account>()
+
+                            val newScore = currentAccount.score + pointsToChange
+
+                            SupabaseInstance.client.from("accounts").update(
+                                {
+                                    set("score", newScore)
+                                }
+                            ) {
+                                filter { eq("userId", authorId) }
+                            }
+
+                            Log.d("ScoreTest", "Đã cập nhật trực tiếp $pointsToChange điểm cho $authorId. Tổng mới: $newScore")
                         } catch (e: Exception) {
-                            Log.e("ScoreTest", "Lỗi RPC cộng điểm: ${e.message}")
+                            Log.e("ScoreTest", "Lỗi khi cập nhật điểm trực tiếp: ${e.message}")
                         }
                     }
                 }
