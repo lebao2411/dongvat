@@ -11,6 +11,8 @@ import com.example.endangeredanimals.Model.DiscussionVoteInsert
 import com.example.endangeredanimals.Model.CommunityDiscussionInsert
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -182,6 +184,7 @@ class DiscussViewModel : ViewModel() {
     }
 
     fun toggleVote(discussionId: Long, isLike: Boolean?) {
+        // Chặn các fakeId chưa đồng bộ xong
         if (discussionId > 1_000_000_000_000L) {
             Log.w("VoteTest", "Bình luận đang đồng bộ, chưa có ID thật để Vote!")
             return
@@ -191,6 +194,12 @@ class DiscussViewModel : ViewModel() {
             try {
                 val userId = SupabaseInstance.client.auth.currentSessionOrNull()?.user?.id ?: return@launch
 
+                // 1. Xác định tác giả bình luận và trạng thái vote cũ để tính điểm
+                val targetComment = _currentDiscussions.value.find { it.discussionId == discussionId }
+                val authorId = targetComment?.accountId
+                val oldVote = _voteData.value[discussionId]?.userVote ?: VoteState.NONE
+
+                // 2. Cập nhật bảng vote (Xóa cũ - Thêm mới)
                 SupabaseInstance.client.from("discussion_votes").delete {
                     filter { eq("discussionId", discussionId); eq("accountId", userId) }
                 }
@@ -199,6 +208,41 @@ class DiscussViewModel : ViewModel() {
                     val type = if (isLike) "like" else "dislike"
                     val newVote = DiscussionVoteInsert(discussionId, userId, type)
                     SupabaseInstance.client.from("discussion_votes").insert(newVote)
+                }
+
+                // 3. LOGIC TÍNH ĐIỂM VÀ GỌI RPC (Chỉ tính cho người dùng thật, không tính cho SYSTEM_AI)
+                if (authorId != null && authorId != "SYSTEM_AI" && authorId != userId) {
+                    var pointsToChange = 0
+                    val actionType = if (isLike == true || (isLike == null && oldVote == VoteState.LIKE)) "LIKE_ACTION" else "DISLIKE_ACTION"
+
+                    // Tính toán chênh lệch điểm dựa trên sự thay đổi nút bấm
+                    pointsToChange = when {
+                        oldVote == VoteState.NONE && isLike == true -> 5       // Mới Like: +5
+                        oldVote == VoteState.NONE && isLike == false -> -2     // Mới Dislike: -2
+                        oldVote == VoteState.LIKE && isLike == null -> -5      // Bỏ Like: -5
+                        oldVote == VoteState.DISLIKE && isLike == null -> 2     // Bỏ Dislike: +2
+                        oldVote == VoteState.LIKE && isLike == false -> -7     // Đang Like sang Dislike: -7
+                        oldVote == VoteState.DISLIKE && isLike == true -> 7     // Đang Dislike sang Like: +7
+                        else -> 0
+                    }
+
+                    if (pointsToChange != 0) {
+                        try {
+                            // Gọi hàm RPC để cộng điểm, xét danh hiệu và ghi PointLog
+                            SupabaseInstance.client.postgrest.rpc(
+                                function = "update_user_score_and_title",
+                                parameters = mapOf(
+                                    "target_account_id" to authorId,
+                                    "points_to_add" to pointsToChange,
+                                    "action_type" to actionType,
+                                    "ref_id" to discussionId.toString()
+                                )
+                            )
+                            Log.d("ScoreTest", "Đã cập nhật $pointsToChange điểm cho $authorId. Lý do: $actionType")
+                        } catch (e: Exception) {
+                            Log.e("ScoreTest", "Lỗi RPC cộng điểm: ${e.message}")
+                        }
+                    }
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }
