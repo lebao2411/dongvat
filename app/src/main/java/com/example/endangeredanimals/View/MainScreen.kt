@@ -32,10 +32,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,6 +50,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ui.BottomNavBackground
+import io.github.jan.supabase.gotrue.auth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun MainScreen(rootNavController: NavHostController) {
@@ -80,6 +86,9 @@ fun MainScreen(rootNavController: NavHostController) {
             composable("scan") { ScannerScreen(navController = rootNavController) }
             composable("favorite") { FavoriteScreen(navController = rootNavController) }
             composable("menu") {
+                val context = LocalContext.current
+                val scope = rememberCoroutineScope()
+
                 MenuScreen(
                     onNavigateToProfile = {
                         rootNavController.navigate("profile")
@@ -91,8 +100,20 @@ fun MainScreen(rootNavController: NavHostController) {
                         rootNavController.navigate("discuss")
                     },
                     onLogout = {
-                        rootNavController.navigate("login") {
-                            popUpTo(0)
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                // 1. Xóa trí nhớ của Google
+                                val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
+                                    com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN
+                                ).build()
+                                val googleSignInClient = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, gso)
+                                googleSignInClient.signOut()
+
+                                // 2. Đăng xuất khỏi Supabase.
+                                com.example.endangeredanimals.Network.SupabaseInstance.client.auth.signOut()
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
                         }
                     }
                 )
