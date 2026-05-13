@@ -197,84 +197,102 @@ class DiscussViewModel : ViewModel() {
     }
 
     fun toggleVote(discussionId: Long, isLike: Boolean?) {
-        // Chặn các fakeId chưa đồng bộ xong
-        if (discussionId > 1_000_000_000_000L) {
-            Log.w("VoteTest", "Bình luận đang đồng bộ, chưa có ID thật để Vote!")
-            return
-        }
+        if (discussionId > 1_000_000_000_000L) return
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val userId = SupabaseInstance.client.auth.currentSessionOrNull()?.user?.id ?: return@launch
 
-                // 1. Xác định tác giả bình luận và trạng thái vote cũ để tính điểm
-                val targetComment = _currentDiscussions.value.find { it.discussionId == discussionId }
-                val authorId = targetComment?.accountId
-                val oldVote = _voteData.value[discussionId]?.userVote ?: VoteState.NONE
+                // 1. TRUY VẤN TRỰC TIẾP TỪ DB ĐỂ XÁC ĐỊNH TRẠNG THÁI HIỆN TẠI (ĐẢM BẢO CHÍNH XÁC)
+                val currentVoteInDb = SupabaseInstance.client.from("discussion_votes")
+                    .select {
+                        filter {
+                            eq("discussionId", discussionId)
+                            eq("accountId", userId)
+                        }
+                    }
+                    .decodeSingleOrNull<DiscussionVote>()
 
-                // 2. Cập nhật bảng vote (Xóa cũ - Thêm mới)
+                val oldVoteStr = currentVoteInDb?.voteType?.lowercase()
+                val nextVoteType = if (isLike == true) "like" else if (isLike == false) "dislike" else null
+
+                // Nếu nhấn lại chính nút đang chọn -> Tắt vote (Toggle off)
+                val finalVoteType = if (oldVoteStr == nextVoteType) null else nextVoteType
+
+                // 2. CẬP NHẬT BẢNG VOTE
                 SupabaseInstance.client.from("discussion_votes").delete {
                     filter { eq("discussionId", discussionId); eq("accountId", userId) }
                 }
 
-                if (isLike != null) {
-                    val type = if (isLike) "like" else "dislike"
-                    val newVote = DiscussionVoteInsert(discussionId, userId, type)
+                if (finalVoteType != null) {
+                    val newVote = DiscussionVoteInsert(discussionId, userId, finalVoteType)
                     SupabaseInstance.client.from("discussion_votes").insert(newVote)
                 }
 
-                // 3. LOGIC TÍNH ĐIỂM VÀ GỌI RPC (Chỉ tính cho người dùng thật, không tính cho SYSTEM_AI)
-                if (authorId != null && authorId != "SYSTEM_AI" && authorId != userId) {
-                    var pointsToChange = 0
-                    val actionType = if (isLike == true || (isLike == null && oldVote == VoteState.LIKE)) "LIKE_ACTION" else "DISLIKE_ACTION"
+                // 3. LOGIC TÍNH ĐIỂM (DỰA TRÊN TRẠNG THÁI THẬT TRONG DB)
+                val targetComment = _currentDiscussions.value.find { it.discussionId == discussionId }
+                val authorId = targetComment?.accountId
 
-                    // Tính toán chênh lệch điểm dựa trên sự thay đổi nút bấm
-                    pointsToChange = when {
-                        oldVote == VoteState.NONE && isLike == true -> 5       // Mới Like: +5
-                        oldVote == VoteState.NONE && isLike == false -> -2     // Mới Dislike: -2
-                        oldVote == VoteState.LIKE && isLike == null -> -5      // Bỏ Like: -5
-                        oldVote == VoteState.DISLIKE && isLike == null -> 2     // Bỏ Dislike: +2
-                        oldVote == VoteState.LIKE && isLike == false -> -7     // Đang Like sang Dislike: -7
-                        oldVote == VoteState.DISLIKE && isLike == true -> 7     // Đang Dislike sang Like: +7
-                        else -> 0
+                if (authorId != null && authorId != "SYSTEM_AI" && authorId != userId) {
+                    val wasLiked = oldVoteStr == "like"
+                    val isNowLiked = finalVoteType == "like"
+
+                    val pointsToChange = when {
+                        !wasLiked && isNowLiked -> 3   // Thực sự từ Không Like -> Like: +3
+                        wasLiked && !isNowLiked -> -3  // Thực sự từ Like -> Không Like: -3
+                        else -> 0                     // Các trường hợp khác: 0
                     }
 
-                    if (pointsToChange != 0 && authorId != null) {
-                        try {
-                            // 1. Ghi nhật ký điểm trực tiếp vào bảng point_logs
-                            val newLog = PointLogInsert(
-                                accountId = authorId,
-                                actionType = actionType,
-                                points = pointsToChange,
-                                referenceId = discussionId.toString()
-                            )
-                            SupabaseInstance.client.from("point_logs").insert(newLog)
-
-                            // 2. Cập nhật tổng điểm trực tiếp vào bảng accounts
-                            // Lấy điểm hiện tại trước (để đảm bảo chính xác)
-                            val currentAccount = SupabaseInstance.client.from("accounts")
-                                .select(Columns.list("score")) {
-                                    filter { eq("userId", authorId) }
-                                }
-                                .decodeSingle<com.example.endangeredanimals.Model.Account>()
-
-                            val newScore = currentAccount.score + pointsToChange
-
-                            SupabaseInstance.client.from("accounts").update(
-                                {
-                                    set("score", newScore)
-                                }
-                            ) {
-                                filter { eq("userId", authorId) }
-                            }
-
-                            Log.d("ScoreTest", "Đã cập nhật trực tiếp $pointsToChange điểm cho $authorId. Tổng mới: $newScore")
-                        } catch (e: Exception) {
-                            Log.e("ScoreTest", "Lỗi khi cập nhật điểm trực tiếp: ${e.message}")
-                        }
+                    if (pointsToChange != 0) {
+                        // Ghi log điểm
+                        val actionType = if (pointsToChange > 0) "LIKE_ACTION" else "UNLIKE_ACTION"
+                        val newLog = PointLogInsert(
+                            accountId = authorId,
+                            actionType = actionType,
+                            points = pointsToChange,
+                            referenceId = discussionId.toString()
+                        )
+                        SupabaseInstance.client.from("point_logs").insert(newLog)
+                        
+                        // Cập nhật Profile (Tính tổng điểm từ logs như ProfileViewModel đã làm)
+                        syncAccountScore(authorId)
                     }
                 }
-            } catch (e: Exception) { e.printStackTrace() }
+                
+                // Cập nhật lại UI sau khi xong
+                fetchVotesForDiscussion(discussionId)
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // Hàm phụ trợ để đồng bộ điểm số vào bảng accounts một cách chính xác
+    private suspend fun syncAccountScore(userId: String) {
+        try {
+            val logs = SupabaseInstance.client.from("point_logs")
+                .select { filter { eq("accountId", userId) } }
+                .decodeList<com.example.endangeredanimals.Model.PointLog>()
+            
+            val totalScore = logs.sumOf { it.points }
+            val newTitle = when {
+                totalScore >= 1000 -> "Anh hùng thiên nhiên"
+                totalScore >= 500 -> "Chuyên gia bảo tồn"
+                totalScore >= 100 -> "Thành viên tích cực"
+                else -> "Tân binh bảo tồn"
+            }
+
+            SupabaseInstance.client.from("accounts").update(
+                {
+                    set("score", totalScore)
+                    set("title", newTitle)
+                }
+            ) { filter { eq("userId", userId) } }
+            
+            Log.d("ScoreTest", "Đã đồng bộ tổng điểm cho $userId: $totalScore")
+        } catch (e: Exception) {
+            Log.e("ScoreTest", "Lỗi đồng bộ: ${e.message}")
         }
     }
 }

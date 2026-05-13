@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.endangeredanimals.Model.Account
+import com.example.endangeredanimals.Model.PointLog
 import com.example.endangeredanimals.Component.SupabaseInstance
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import io.github.jan.supabase.gotrue.auth
@@ -67,7 +68,8 @@ class ProfileViewModel : ViewModel() {
         }
 
         try {
-            val result = client.from("accounts")
+            // 1. Lấy thông tin cơ bản từ bảng accounts
+            val accountResult = client.from("accounts")
                 .select {
                     filter {
                         eq("userId", user.id)
@@ -75,15 +77,41 @@ class ProfileViewModel : ViewModel() {
                 }
                 .decodeSingleOrNull<Account>()
 
-            if (result != null) {
-                accountState = result
+            // 2. Lấy toàn bộ nhật ký điểm từ bảng point_logs để tính tổng điểm thực tế
+            val logsResult = client.from("point_logs")
+                .select {
+                    filter {
+                        eq("accountId", user.id)
+                    }
+                }
+                .decodeList<PointLog>()
+
+            // Đảm bảo chỉ tính các điểm hợp lệ (tránh null nếu có)
+            val calculatedScore = logsResult.filter { it.accountId == user.id }.sumOf { it.points }
+            
+            // 3. Tính toán danh hiệu dựa trên điểm số thực tế vừa tính
+            val calculatedTitle = when {
+                calculatedScore >= 1000 -> "Anh hùng thiên nhiên"
+                calculatedScore >= 500 -> "Chuyên gia bảo tồn"
+                calculatedScore >= 100 -> "Thành viên tích cực"
+                else -> "Tân binh bảo tồn"
+            }
+
+            if (accountResult != null) {
+                // Ghi đè score và title bằng giá trị thực tế từ logs
+                accountState = accountResult.copy(
+                    score = calculatedScore,
+                    title = calculatedTitle
+                )
                 _profileState.value = ProfileState.Idle
             } else {
                 // Tạo mới nếu chưa có
                 val newAccount = Account(
                     userId = user.id,
                     userName = user.userMetadata?.get("full_name")?.toString() ?: "Người dùng mới",
-                    email = user.email ?: ""
+                    email = user.email ?: "",
+                    score = calculatedScore,
+                    title = calculatedTitle
                 )
                 client.from("accounts").insert(newAccount)
                 accountState = newAccount
