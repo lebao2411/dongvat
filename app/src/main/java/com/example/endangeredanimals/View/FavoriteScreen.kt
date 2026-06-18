@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -28,24 +30,33 @@ import com.example.endangeredanimals.ViewModel.FavoriteViewModel
 @Composable
 fun FavoriteScreen(
     navController: NavController,
-    favoriteViewModel: FavoriteViewModel = viewModel() 
+    favoriteViewModel: FavoriteViewModel = viewModel()
 ) {
     val favoriteAnimals by favoriteViewModel.favoriteAnimals.collectAsState()
     val isLoading by favoriteViewModel.isLoading.collectAsState()
     val isRefreshing by favoriteViewModel.isRefreshing.collectAsState()
-    
+
     val pullToRefreshState = rememberPullToRefreshState()
 
-    // Sử dụng Surface để có nền đặc, tránh hiện chồng màn hình
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    // ĐÃ SỬA: Thêm Scaffold để quản lý Status Bar và TopAppBar
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Động vật yêu thích", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+            )
+        }
+    ) { paddingValues ->
         PullToRefreshBox(
             state = pullToRefreshState,
             isRefreshing = isRefreshing,
             onRefresh = { favoriteViewModel.refresh() },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
             indicator = {
                 PullToRefreshDefaults.Indicator(
                     state = pullToRefreshState,
@@ -69,38 +80,24 @@ fun FavoriteScreen(
                     )
                 }
             } else {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                LazyVerticalStaggeredGrid(
+                    columns = StaggeredGridCells.Fixed(2),
+                    verticalItemSpacing = 8.dp,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 16.dp),
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Text(
-                        text = "Động vật yêu thích của bạn",
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(vertical = 16.dp),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    )
-
-                    LazyVerticalStaggeredGrid(
-                        columns = StaggeredGridCells.Fixed(2),
-                        verticalItemSpacing = 8.dp,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 16.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(favoriteAnimals, key = { it.animalID ?: it.hashCode() }) { animal ->
-                            AnimalGridItem(
-                                animal = animal,
-                                onItemClick = {
-                                    val id = animal.animalID
-                                    if (!id.isNullOrBlank()) {
-                                        // Mã hóa ID để tránh lỗi Route
-                                        val encodedId = Uri.encode(id)
-                                        navController.navigate("animal_screen/$encodedId")
-                                    }
+                    items(favoriteAnimals, key = { it.animalID ?: it.hashCode() }) { animal ->
+                        AnimalGridItem(
+                            animal = animal,
+                            onItemClick = {
+                                val id = animal.animalID
+                                if (!id.isNullOrBlank()) {
+                                    val encodedId = Uri.encode(id)
+                                    navController.navigate("animal_screen/$encodedId")
                                 }
-                            )
-                        }
+                            }
+                        )
                     }
                 }
             }

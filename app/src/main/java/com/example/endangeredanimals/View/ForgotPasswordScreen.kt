@@ -2,6 +2,7 @@ package com.example.endangeredanimals.View
 
 import android.app.Activity
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,9 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,7 +33,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.ForgotPasswordState
 import com.example.endangeredanimals.ViewModel.ForgotPasswordViewModel
-import kotlinx.coroutines.delay
+import com.example.endangeredanimals.ui.Neutral100
+import com.example.endangeredanimals.ui.Neutral50
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,23 +49,16 @@ fun ForgotPasswordScreen(
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
     var isConfirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
 
-    // State từ ViewModel (Sử dụng package viết thường)
     val state by forgotPasswordViewModel.forgotPasswordState.collectAsState()
     val context = LocalContext.current
 
-    var secondsRemaining by remember { mutableStateOf(0) }
-    val countdownMinutes = 5
-    val isCountingDown = secondsRemaining > 0
-
-    // Các trường nhập mật khẩu chỉ được bật khi đã xác thực OTP thành công
     val isOtpVerified = state is ForgotPasswordState.OtpVerified || state is ForgotPasswordState.Success
 
-    // Xử lý logic khi state thay đổi
     LaunchedEffect(state) {
         when (val currentState = state) {
             is ForgotPasswordState.OtpSent -> {
-                Toast.makeText(context, currentState.message, Toast.LENGTH_SHORT).show()
-                secondsRemaining = countdownMinutes * 60 // Bắt đầu đếm ngược
+                // Đã cập nhật Toast theo ý muốn của bạn
+                Toast.makeText(context, "Đã gửi mã thành công, mã có hiệu lực trong 1 giờ sau khi gửi", Toast.LENGTH_LONG).show()
                 forgotPasswordViewModel.clearState()
             }
             is ForgotPasswordState.OtpVerified -> {
@@ -74,26 +66,17 @@ fun ForgotPasswordScreen(
             }
             is ForgotPasswordState.Success -> {
                 Toast.makeText(context, currentState.message, Toast.LENGTH_LONG).show()
-                navController.popBackStack() // Quay về màn hình đăng nhập
+                navController.popBackStack()
                 forgotPasswordViewModel.clearState()
             }
             is ForgotPasswordState.Error -> {
                 Toast.makeText(context, currentState.message, Toast.LENGTH_LONG).show()
                 forgotPasswordViewModel.clearState()
             }
-            else -> { /* Không làm gì */ }
+            else -> { }
         }
     }
 
-    // Logic đếm ngược
-    LaunchedEffect(secondsRemaining) {
-        if (secondsRemaining > 0) {
-            delay(1000L)
-            secondsRemaining--
-        }
-    }
-
-    // Cài đặt giao diện Edge-to-Edge
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -102,12 +85,10 @@ fun ForgotPasswordScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding()
-        ) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize().navigationBarsPadding(),
+        containerColor = Neutral50,
+        topBar = {
             TopAppBar(
                 title = { },
                 navigationIcon = {
@@ -121,22 +102,29 @@ fun ForgotPasswordScreen(
                 modifier = Modifier.statusBarsPadding(),
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize()) {
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .padding(paddingValues)
+                    .imePadding() // TỰ ĐỘNG ĐẨY LÊN KHI BÀN PHÍM XUẤT HIỆN
                     .padding(horizontal = 24.dp)
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 30.dp),
                     elevation = CardDefaults.cardElevation(8.dp),
                     shape = RoundedCornerShape(24.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp),
+                        modifier = Modifier
+                            .background(Neutral100)
+                            .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
@@ -146,7 +134,6 @@ fun ForgotPasswordScreen(
                             fontWeight = FontWeight.Bold
                         )
 
-                        // --- Trường nhập Email ---
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it },
@@ -154,11 +141,11 @@ fun ForgotPasswordScreen(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(12.dp),
                             readOnly = isOtpVerified
                         )
 
-                        // --- Trường nhập OTP và nút Gửi/Xác nhận mã ---
+                        // NÚT GỬI MÃ NẰM CẠNH Ô NHẬP MÃ
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -171,44 +158,29 @@ fun ForgotPasswordScreen(
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 readOnly = isOtpVerified
                             )
                             Button(
-                                onClick = {
-                                    if (!isOtpVerified) {
-                                        forgotPasswordViewModel.verifyOtp(email, verificationCode)
-                                    }
-                                },
-                                enabled = !isOtpVerified,
-                                colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
+                                onClick = { forgotPasswordViewModel.sendOtp(email) },
+                                enabled = !isOtpVerified, // Nút luôn khả dụng nếu chưa xác thực xong
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                             ) {
-                                Text(if (!isOtpVerified) "Xác thực" else "Đã OK")
+                                Text("Gửi mã")
                             }
                         }
 
-                        // --- Nút Gửi mã riêng và đồng hồ đếm ngược ---
+                        // NÚT XÁC THỰC CHUYỂN XUỐNG DƯỚI
                         Button(
-                            onClick = { forgotPasswordViewModel.sendOtp(email) },
-                            enabled = !isCountingDown && !isOtpVerified,
+                            onClick = {
+                                if (!isOtpVerified) forgotPasswordViewModel.verifyOtp(email, verificationCode)
+                            },
+                            enabled = !isOtpVerified,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(if (isCountingDown) "Gửi lại sau..." else "Gửi mã")
+                            Text(if (!isOtpVerified) "Xác Thực Mã OTP" else "Đã Xác Thực Thành Công")
                         }
 
-                        if (isCountingDown) {
-                            val minutes = secondsRemaining / 60
-                            val seconds = secondsRemaining % 60
-                            Text(
-                                text = "Mã sẽ hết hạn trong %02d:%02d".format(minutes, seconds),
-                                color = MaterialTheme.colorScheme.primary,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-
-
-                        // --- Các trường nhập mật khẩu mới ---
                         OutlinedTextField(
                             value = newPassword,
                             onValueChange = { newPassword = it },
@@ -217,11 +189,15 @@ fun ForgotPasswordScreen(
                             singleLine = true,
                             visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(12.dp),
                             enabled = isOtpVerified,
                             trailingIcon = {
                                 IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                                    Icon(painterResource(if (isPasswordVisible) R.drawable.visibility else R.drawable.visibility_off), "Toggle password visibility")
+                                    Icon(
+                                        painter = painterResource(if (isPasswordVisible) R.drawable.visibility else R.drawable.visibility_off),
+                                        contentDescription = "Toggle password visibility",
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
                         )
@@ -234,20 +210,22 @@ fun ForgotPasswordScreen(
                             singleLine = true,
                             visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(12.dp),
                             enabled = isOtpVerified,
                             trailingIcon = {
                                 IconButton(onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible }) {
-                                    Icon(painterResource(if (isConfirmPasswordVisible) R.drawable.visibility else R.drawable.visibility_off), "Toggle password visibility")
+                                    Icon(
+                                        painter = painterResource(if (isConfirmPasswordVisible) R.drawable.visibility else R.drawable.visibility_off),
+                                        contentDescription = "Toggle password visibility",
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
                         )
 
                         Button(
                             onClick = { forgotPasswordViewModel.resetPassword(newPassword, confirmPassword) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
                             enabled = isOtpVerified,
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
@@ -256,24 +234,16 @@ fun ForgotPasswordScreen(
                     }
                 }
             }
-        }
 
-        if (state is ForgotPasswordState.Loading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
+            // LOADING NẰM TRÊN CÙNG
+            if (state is ForgotPasswordState.Loading) {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
         }
-    }
-}
-
-
-@Preview(showBackground = true)
-@Composable
-fun ForgotPasswordScreenPreview() {
-    MaterialTheme {
-        ForgotPasswordScreen(navController = rememberNavController())
     }
 }

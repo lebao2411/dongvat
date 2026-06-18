@@ -147,7 +147,7 @@ fun ChangePasswordScreen(
                             .fillMaxWidth()
                             .height(50.dp),
                         enabled = changePasswordState !is ChangePasswordState.Loading,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Green500)
                     ) {
                         Text("XÁC NHẬN", fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -193,7 +193,7 @@ private fun PasswordTextField(
                 )
             }
         },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,
             cursorColor = MaterialTheme.colorScheme.primary,

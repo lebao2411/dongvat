@@ -14,5 +14,20 @@ data class Contribution(
     val status: String?,
     val userNote: String? = null,
     val finalAnimalId: String? = null,
-    val createdAt: String?
+    val capturedAt: String? = null, // THÊM CỘT LƯU GIỜ CHỤP THỰC TẾ
+    val createdAt: String?          // Giữ nguyên cột này cho giờ Upload
+)
+
+@Serializable
+data class ContributionInsert(
+    val contributionId: String,
+    val accountId: String?,
+    val imageUrl: String,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val aiPrediction: JsonElement? = null,
+    val status: String?,
+    val userNote: String? = null,
+    val finalAnimalId: String? = null,
+    val capturedAt: String? = null  // THÊM CỘT LƯU GIỜ CHỤP THỰC TẾ
 )

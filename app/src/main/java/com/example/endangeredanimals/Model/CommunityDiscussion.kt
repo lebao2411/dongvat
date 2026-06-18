@@ -9,7 +9,8 @@ data class CommunityDiscussion(
     val accountId: String?,
     val comment: String,
     val suggestedAnimalId: String?,
-    val createdAt: String?
+    val createdAt: String?,
+    val parentId: Long? = null
 )
 
 @Serializable
@@ -17,5 +18,6 @@ data class CommunityDiscussionInsert(
     val contributionId: String?,
     val accountId: String?,
     val comment: String,
-    val suggestedAnimalId: String?
+    val suggestedAnimalId: String?,
+    val parentId: Long? = null
 )

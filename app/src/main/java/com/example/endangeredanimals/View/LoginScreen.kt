@@ -43,7 +43,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 @Composable
 fun LoginScreen(
     // TÁCH LOGIC ĐIỀU HƯỚNG RA NGOÀI BẰNG CALLBACK
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (String) -> Unit,
     onNavigateToSignUp: () -> Unit,
     onNavigateToForgotPassword: () -> Unit,
     loginViewModel: LoginViewModel = viewModel()
@@ -88,7 +88,7 @@ fun LoginScreen(
             LaunchedEffect(Unit) {
                 Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
                 // GỌI CALLBACK THAY VÌ NAVIGATE TRỰC TIẾP
-                onLoginSuccess()
+                onLoginSuccess(state.role)
             }
         }
         is LoginUIState.Error -> {
@@ -116,7 +116,7 @@ fun LoginScreen(
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email Icon") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = textFieldColors
             )
 
@@ -135,7 +135,7 @@ fun LoginScreen(
                         Icon(painter = painterResource(id = image), contentDescription = null, modifier = Modifier.size(24.dp))
                     }
                 },
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = textFieldColors
             )
 
@@ -156,7 +156,7 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 enabled = loginState !is LoginUIState.Loading,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Đăng nhập", fontSize = 18.sp)
             }
@@ -170,7 +170,7 @@ fun LoginScreen(
             Button(
                 onClick = { loginViewModel.onGoogleSignInClick(launcher, googleSignInClient) },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 enabled = loginState !is LoginUIState.Loading,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
                 border = BorderStroke(1.dp, Color.Gray)

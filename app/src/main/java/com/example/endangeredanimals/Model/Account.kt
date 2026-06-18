@@ -10,7 +10,7 @@ data class Account(
     @SerialName("userName")
     val userName: String = "",
     val email: String = "",
-    val password: String? = null,
     val score: Int = 0,
-    val title: String = "Tân binh bảo tồn"
+    val title: String = "Tân binh bảo tồn",
+    val role: String = "user"
 )

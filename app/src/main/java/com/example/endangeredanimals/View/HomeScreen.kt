@@ -46,7 +46,6 @@ import coil.compose.AsyncImage
 import com.example.endangeredanimals.Model.Animal
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.HomeViewModel
-import com.example.endangeredanimals.ui.Neutral100
 import kotlinx.coroutines.delay
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -99,20 +98,19 @@ fun HomeScreen(
                     item(span = StaggeredGridItemSpan.FullLine) {
                         Spacer(modifier = Modifier.height(5.dp).fillMaxWidth())
                     }
-
                     item(span = StaggeredGridItemSpan.FullLine) {
                         ImageSlider()
                     }
 
-                    item(span = StaggeredGridItemSpan.FullLine) {
-                        CategorySuggestionRow(
-                            categories = homeViewModel.suggestedCategories,
-                            onCategoryClick = { category ->
-                                val encodedCategory = URLEncoder.encode(category, StandardCharsets.UTF_8.toString())
-                                navController.navigate("result_screen?category=$encodedCategory")
-                            }
-                        )
-                    }
+//                    item(span = StaggeredGridItemSpan.FullLine) {
+//                        CategorySuggestionRow(
+//                            categories = homeViewModel.suggestedCategories,
+//                            onCategoryClick = { category ->
+//                                val encodedCategory = URLEncoder.encode(category, StandardCharsets.UTF_8.toString())
+//                                navController.navigate("result_screen?category=$encodedCategory")
+//                            }
+//                        )
+//                    }
 
                     item(span = StaggeredGridItemSpan.FullLine) {
                         Text(
