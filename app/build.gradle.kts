@@ -79,6 +79,7 @@ dependencies {
     implementation(libs.google.generativeai)
     implementation(libs.lottie.compose)
     implementation("androidx.navigation:navigation-compose:2.8.0-beta01")
+    implementation(libs.androidx.core.splashscreen)
 
     // Supabase
     implementation(platform("io.github.jan-tennert.supabase:bom:2.6.1"))

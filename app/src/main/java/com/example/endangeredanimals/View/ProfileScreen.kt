@@ -186,7 +186,7 @@ fun ProfileScreen(
                                     label = { Text("Tên người dùng") },
                                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp)
+                                    shape = RoundedCornerShape(12.dp)
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(

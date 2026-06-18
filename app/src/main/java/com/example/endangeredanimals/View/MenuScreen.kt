@@ -28,11 +28,13 @@ import com.example.endangeredanimals.ui.Neutral100
 import com.example.endangeredanimals.ui.Neutral200
 import com.example.endangeredanimals.ui.Neutral50
 
+// ĐÃ ĐỔI: Thay onNavigateToDiscuss thành onNavigateToFavorite
 @Composable
 fun MenuScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToContribution: () -> Unit,
-    onNavigateToDiscuss: () -> Unit,
+    onNavigateToFavorite: () -> Unit,
+    onNavigateToLeaderboard: () -> Unit,
     onLogout: () -> Unit
 ) {
     Column(
@@ -55,7 +57,7 @@ fun MenuScreen(
             icon = Icons.Default.Person,
             title = "Hồ sơ cá nhân",
             subtitle = "Quản lý thông tin và điểm số",
-            onClick = onNavigateToProfile // Gọi callback
+            onClick = onNavigateToProfile
         )
 
         // --- NHÓM CỘNG ĐỒNG ---
@@ -63,22 +65,22 @@ fun MenuScreen(
         MenuItemCard(
             iconPainter = painterResource(R.drawable.animal),
             title = "Đóng góp ảnh",
-            onClick = onNavigateToContribution // Gọi callback
+            onClick = onNavigateToContribution
         )
         Spacer(modifier = Modifier.height(7.dp))
 
-        // ĐÃ THÊM ĐIỀU HƯỚNG TỚI THẢO LUẬN
+        // ĐÃ ĐỔI: Thẻ Thảo luận thành thẻ Yêu Thích
         MenuItemCard(
-            iconPainter = painterResource(R.drawable.discuss),
-            title = "Thảo luận cộng đồng",
-            onClick = onNavigateToDiscuss // Gọi callback
+            iconPainter = painterResource(R.drawable.favorite),
+            title = "Động vật yêu thích",
+            onClick = onNavigateToFavorite
         )
         Spacer(modifier = Modifier.height(7.dp))
 
         MenuItemCard(
             iconPainter = painterResource(R.drawable.leader_board),
             title = "Bảng xếp hạng",
-            onClick = { /* TODO: Thêm onNavigateToLeaderboard sau */ }
+            onClick = onNavigateToLeaderboard
         )
 
         // --- NHÓM HỆ THỐNG ---
@@ -95,7 +97,7 @@ fun MenuScreen(
             title = "Đăng xuất",
             iconTint = Color.Red,
             textColor = Color.Red,
-            onClick = onLogout // Gọi callback
+            onClick = onLogout
         )
 
         Spacer(modifier = Modifier.height(30.dp))
@@ -204,11 +206,11 @@ fun MenuItemCard(
 @Preview(showBackground = true)
 @Composable
 fun PreviewMenuScreen() {
-    // Không cần FakeNavController rườm rà nữa, chỉ cần truyền lambda rỗng
     MenuScreen(
         onNavigateToProfile = {},
         onNavigateToContribution = {},
-        onNavigateToDiscuss = {},
+        onNavigateToFavorite = {}, // Đã đổi
+        onNavigateToLeaderboard = {},
         onLogout = {}
     )
 }

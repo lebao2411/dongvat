@@ -6,11 +6,11 @@ import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.ActivityResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.endangeredanimals.Model.Account
 import com.example.endangeredanimals.Component.SupabaseInstance
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.common.api.ApiException
+import com.example.endangeredanimals.Model.Account
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.Google
 import io.github.jan.supabase.gotrue.providers.builtin.Email
@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 sealed class LoginUIState {
     object Idle : LoginUIState()
     object Loading : LoginUIState()
-    object Success : LoginUIState()
+    data class Success(val role: String) : LoginUIState()
     data class Error(val message: String) : LoginUIState()
 }
 
@@ -51,10 +51,30 @@ class LoginViewModel : ViewModel() {
                     this.email = email
                     this.password = password
                 }
-                _loginUIState.value = LoginUIState.Success
+                
+                val user = client.auth.currentSessionOrNull()?.user
+                if (user != null) {
+                    val account = client.from("accounts")
+                        .select { filter { eq("userId", user.id) } }
+                        .decodeSingleOrNull<Account>()
+                    
+                    val role = account?.role ?: "user"
+                    _loginUIState.value = LoginUIState.Success(role)
+                } else {
+                    _loginUIState.value = LoginUIState.Error("Không thể lấy thông tin phiên đăng nhập.")
+                }
             } catch (e: Exception) {
-                Log.e("LoginViewModel", "Supabase Auth Error", e)
-                _loginUIState.value = LoginUIState.Error("Email hoặc mật khẩu không chính xác.")
+                Log.e("LoginViewModel", "Supabase Auth Error: ${e.message}")
+
+                // PHÂN LOẠI LỖI ĐỂ BÁO CHO CHÍNH XÁC
+                val errorMsg = e.message ?: ""
+                if (errorMsg.contains("Email not confirmed", ignoreCase = true)) {
+                    _loginUIState.value = LoginUIState.Error("Tài khoản chưa được xác nhận. Vui lòng kiểm tra Email của bạn!")
+                } else if (errorMsg.contains("Invalid login credentials", ignoreCase = true)) {
+                    _loginUIState.value = LoginUIState.Error("Email hoặc mật khẩu không chính xác.")
+                } else {
+                    _loginUIState.value = LoginUIState.Error("Đăng nhập thất bại. Vui lòng thử lại.")
+                }
             }
         }
     }
@@ -77,72 +97,50 @@ class LoginViewModel : ViewModel() {
         val task = GoogleSignIn.getSignedInAccountFromIntent(data)
         try {
             val account = task.getResult(ApiException::class.java)!!
+            Log.d("GoogleSignIn", "Google Auth Success: Email = ${account.email}, IDToken Length = ${account.idToken?.length ?: 0}")
             supabaseAuthWithGoogle(account.idToken!!)
         } catch (e: ApiException) {
-            _loginUIState.value = LoginUIState.Error("Đăng nhập Google thất bại: ${e.message}")
+            Log.e("GoogleSignIn", "Google Auth Error: StatusCode = ${e.statusCode}, Message = ${e.message}")
+            // Bổ sung phân tích mã lỗi cụ thể từ Google để dev dễ sửa
+            val detailMsg = when (e.statusCode) {
+                7 -> "Lỗi mạng (Network Error). Vui lòng kiểm tra wifi/mạng di động."
+                10 -> "Lỗi cấu hình (DEVELOPER_ERROR): Điển hình do chưa thêm SHA-1 vào Google Cloud Console hoặc sai Web Client ID."
+                12500 -> "Lỗi mã cấu hình (SIGN_IN_FAILED)."
+                12501 -> "Người dùng chủ động hủy chọn tài khoản (USER_CANCELLED)."
+                else -> "Mã lỗi hệ thống Google: ${e.statusCode}"
+            }
+            _loginUIState.value = LoginUIState.Error("Đăng nhập Google thất bại: $detailMsg")
         }
     }
 
     private fun supabaseAuthWithGoogle(idToken: String) {
         viewModelScope.launch {
             try {
+                Log.d("GoogleSignIn", "Connecting token with Supabase...")
                 // Đăng nhập vào Supabase bằng ID Token nhận được từ Google
                 client.auth.signInWith(IDToken) {
                     this.idToken = idToken
                     this.provider = Google
                 }
-                
+
                 val user = client.auth.currentSessionOrNull()?.user
                 if (user != null) {
-                    val result = client.from("accounts")
-                        .select {
-                            filter {
-                                eq("userId", user.id)
-                            }
-                        }
+                    Log.d("GoogleSignIn", "Supabase Auth Success: User ID = ${user.id}")
+                    val account = client.from("accounts")
+                        .select { filter { eq("userId", user.id) } }
                         .decodeSingleOrNull<Account>()
 
-                    if (result == null) {
-                        saveUserToSupabase(
-                            userId = user.id,
-                            userName = user.userMetadata?.get("full_name")?.toString() ?: "Người dùng mới",
-                            email = user.email ?: ""
-                        )
-                    }
+                    val role = account?.role ?: "user"
+                    Log.d("GoogleSignIn", "User Role Loaded: $role")
+                    _loginUIState.value = LoginUIState.Success(role)
+                } else {
+                    Log.e("GoogleSignIn", "Supabase Auth Error: Session is null after sign in.")
+                    _loginUIState.value = LoginUIState.Error("Lỗi xác thực người dùng.")
                 }
-
-                _loginUIState.value = LoginUIState.Success
             } catch (e: Exception) {
-                Log.e("LoginViewModel", "Supabase Auth Google Error: ${e.message}")
+                Log.e("GoogleSignIn", "Supabase Auth Google Error: ${e.message}", e)
                 _loginUIState.value = LoginUIState.Error("Xác thực Google với Supabase thất bại.")
             }
-        }
-    }
-
-    fun signOut(googleSignInClient: GoogleSignInClient) {
-        viewModelScope.launch {
-            try {
-                client.auth.signOut()
-                googleSignInClient.signOut()
-                _loginUIState.value = LoginUIState.Idle
-            } catch (e: Exception) {
-                Log.e("LoginViewModel", "Error signing out: ${e.message}")
-            }
-        }
-    }
-
-    private suspend fun saveUserToSupabase(userId: String, userName: String, email: String) {
-        val newAccount = Account(
-            userId = userId,
-            userName = userName,
-            email = email,
-            password = ""
-        )
-
-        try {
-            client.from("accounts").insert(newAccount)
-        } catch (e: Exception) {
-            Log.e("LoginViewModel", "Lỗi khi lưu người dùng vào Supabase: ${e.message}")
         }
     }
 

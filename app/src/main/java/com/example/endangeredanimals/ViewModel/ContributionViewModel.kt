@@ -13,6 +13,7 @@ import com.example.endangeredanimals.Component.AnimalAiService
 import com.example.endangeredanimals.Component.SupabaseInstance
 import com.example.endangeredanimals.Model.CommunityDiscussion
 import com.example.endangeredanimals.Model.Contribution
+import com.example.endangeredanimals.Model.ContributionInsert
 import com.example.endangeredanimals.View.ContributionImage
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -24,8 +25,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+// THÊM 3 IMPORT CỦA BỘ THƯ VIỆN KOTLINX JSON
 import kotlinx.serialization.json.JsonElement
-import org.json.JSONArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.Json
+
 import java.io.InputStream
 import java.util.UUID
 
@@ -34,7 +39,6 @@ class ContributionViewModel : ViewModel() {
     private val _images = MutableStateFlow<List<ContributionImage>>(emptyList())
     val images: StateFlow<List<ContributionImage>> = _images.asStateFlow()
 
-    // BIẾN STATE THEO DÕI QUÁ TRÌNH UPLOAD
     private val _isUploading = MutableStateFlow(false)
     val isUploading: StateFlow<Boolean> = _isUploading.asStateFlow()
 
@@ -53,7 +57,6 @@ class ContributionViewModel : ViewModel() {
         _images.update { currentList -> currentList.filter { it.uri != uri } }
     }
 
-    // --- HÀM MỚI: UPLOAD LÊN SUPABASE ---
     fun uploadContributions(context: Context, description: String, aiResult: String?, onSuccess: () -> Unit) {
         val validImages = _images.value.filter { it.isValid && !it.isLoading }
         if (validImages.isEmpty()) return
@@ -65,25 +68,28 @@ class ContributionViewModel : ViewModel() {
                 val session = SupabaseInstance.client.auth.currentSessionOrNull()
                 val accountId = session?.user?.id ?: throw Exception("Bạn chưa đăng nhập!")
 
-                // 1. KHAI BÁO CÁC BIẾN Ở NGOÀI CÙNG ĐỂ GIỮ STATE
                 var finalStatus = "pending"
-                var finalAiPrediction: String? = null
+                // CHÚ Ý: Biến này giờ mang chuẩn kiểu JsonElement của thư viện
+                var finalAiPrediction: JsonElement? = null
                 var finalAnimalId: String? = null
 
-                // THÊM 2 BIẾN NÀY ĐỂ DÀNH CHO BÌNH LUẬN AI
                 var aiTop1Species: String? = null
                 var aiTop1Confidence: Int = 0
 
-                // 2. BỘ NÃO XỬ LÝ
+                // 2. BỘ NÃO XỬ LÝ (ĐÃ ĐƯỢC CẬP NHẬT ĐỂ ĐỌC CHỮ TIẾNG VIỆT)
                 if (!aiResult.isNullOrBlank()) {
                     try {
-                        val jsonArray = JSONArray(aiResult)
-                        if (jsonArray.length() > 0) {
-                            val top1 = jsonArray.getJSONObject(0)
+                        val lines = aiResult.lines()
+                        val speciesLine = lines.find { it.startsWith("Tên loài:") }
+                        val confLine = lines.find { it.startsWith("Độ tự tin:") }
 
-                            // Gán giá trị cho 2 biến global vừa tạo
-                            aiTop1Confidence = top1.getInt("confidence")
-                            aiTop1Species = top1.getString("speciesName").substringBefore(" (")
+                        if (speciesLine != null && confLine != null) {
+                            // Cắt chữ ra để lấy Tên và %
+                            val fullSpecies = speciesLine.substringAfter("Tên loài:").trim()
+                            aiTop1Species = fullSpecies.substringBefore(" (").trim()
+
+                            val confStr = confLine.substringAfter("Độ tự tin:").replace("%", "").trim()
+                            aiTop1Confidence = confStr.toIntOrNull() ?: 0
 
                             if (aiTop1Confidence >= 85) {
                                 finalStatus = "approved"
@@ -92,13 +98,19 @@ class ContributionViewModel : ViewModel() {
                             } else {
                                 finalStatus = "discussing"
                                 finalAnimalId = null
-                                finalAiPrediction = aiResult
+
+                                // TÁI TẠO LẠI CẤU TRÚC JSON để màn hình Thảo luận có thể đọc được
+                                val reconstructedJson = """[{"speciesName": "$fullSpecies", "confidence": $aiTop1Confidence}]"""
+                                finalAiPrediction = Json.parseToJsonElement(reconstructedJson)
                             }
+                        } else {
+                            finalStatus = "pending"
+                            finalAiPrediction = JsonPrimitive(aiResult)
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         finalStatus = "pending"
-                        finalAiPrediction = aiResult
+                        finalAiPrediction = JsonPrimitive(aiResult)
                     }
                 }
 
@@ -113,31 +125,34 @@ class ContributionViewModel : ViewModel() {
                     SupabaseInstance.client.storage.from("contribution_images").upload(fileName, bytes)
                     val publicUrl = SupabaseInstance.client.storage.from("contribution_images").publicUrl(fileName)
 
-                    val newContribution = Contribution(
+                    val location = getExifLocation(context, image.uri)
+                    val imgLat = location?.first
+                    val imgLon = location?.second
+                    val capturedTime = getPhotoCapturedTime(context, image.uri)
+
+                    val newContribution = ContributionInsert(
                         contributionId = UUID.randomUUID().toString(),
                         accountId = accountId,
                         imageUrl = publicUrl,
-                        latitude = null,
-                        longitude = null,
-                        aiPrediction = finalAiPrediction as JsonElement?,
+                        latitude = imgLat,
+                        longitude = imgLon,
+                        aiPrediction = finalAiPrediction,
                         status = finalStatus,
                         userNote = description.ifBlank { null },
                         finalAnimalId = finalAnimalId,
-                        createdAt = null
+                        capturedAt = capturedTime
                     )
 
-                    // Insert bài đăng gốc
                     SupabaseInstance.client.from("contributions").insert(newContribution)
 
-                    // 4. CHÈN BÌNH LUẬN AI (NẾU CÓ)
-                    // Dùng biến aiTop1Species và aiTop1Confidence ở đây thì sẽ không bao giờ lỗi
+                    // 4. CHÈN BÌNH LUẬN CỦA HỆ THỐNG AI
                     if (finalStatus == "discussing" && aiTop1Species != null) {
                         val aiComment = CommunityDiscussion(
                             discussionId = 0,
                             contributionId = newContribution.contributionId,
                             accountId = "SYSTEM_AI",
                             comment = "AI dự đoán đây là: $aiTop1Species (Độ tự tin: ${aiTop1Confidence}%).",
-                            suggestedAnimalId = null, // Chờ user vote
+                            suggestedAnimalId = null,
                             createdAt = null
                         )
                         SupabaseInstance.client.from("community_discussions").insert(aiComment)
@@ -224,6 +239,54 @@ class ContributionViewModel : ViewModel() {
             }
         } catch (e: Exception) {
             null
+        }
+    }
+
+    // Trích xuất Kinh độ và Vĩ độ từ ảnh
+    private fun getExifLocation(context: Context, uri: Uri): Pair<Double, Double>? {
+        var inputStream: InputStream? = null
+        return try {
+            inputStream = context.contentResolver.openInputStream(uri)
+            if (inputStream != null) {
+                val exif = ExifInterface(inputStream)
+                val latLong = FloatArray(2)
+
+                // Hàm getLatLong sẽ tự động lấy và ép kiểu tọa độ GPS vào mảng latLong
+                if (exif.getLatLong(latLong)) {
+                    Pair(latLong[0].toDouble(), latLong[1].toDouble()) // Trả về (Vĩ độ, Kinh độ)
+                } else {
+                    null // Ảnh không có lưu vị trí
+                }
+            } else null
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        } finally {
+            inputStream?.close()
+        }
+    }
+
+    private fun getPhotoCapturedTime(context: Context, uri: Uri): String? {
+        var inputStream: InputStream? = null
+        return try {
+            inputStream = context.contentResolver.openInputStream(uri)
+            if (inputStream != null) {
+                val exif = ExifInterface(inputStream)
+                val rawDateTime = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
+
+                if (!rawDateTime.isNullOrBlank()) {
+                    // Chuyển đổi từ định dạng EXIF sang định dạng chuẩn ISO của Supabase
+                    val parser = java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss", java.util.Locale.getDefault())
+                    val formatter = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault())
+                    val date = parser.parse(rawDateTime)
+                    if (date != null) formatter.format(date) else null
+                } else null
+            } else null
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        } finally {
+            inputStream?.close()
         }
     }
 }

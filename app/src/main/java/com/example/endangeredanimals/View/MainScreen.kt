@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,6 +33,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -41,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -49,9 +54,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.endangeredanimals.R
+import com.example.endangeredanimals.ViewModel.NotificationViewModel
 import com.example.endangeredanimals.ui.BottomNavBackground
-import com.example.endangeredanimals.ui.Green100
 import com.example.endangeredanimals.ui.Neutral100
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -60,22 +67,30 @@ import kotlinx.coroutines.withContext
 @Composable
 fun MainScreen(rootNavController: NavHostController) {
     val bottomNavController = rememberNavController()
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val navBackStackEntry by rootNavController.currentBackStackEntryAsState()
+
+    LaunchedEffect(navBackStackEntry) {
+        notificationViewModel.fetchNotifications()
+    }
 
     Scaffold(
         containerColor = Neutral100,
         topBar = {
             MainTopAppBar(
                 onSearchNavigate = {
-                    // Khi tìm kiếm, ta muốn nhảy ra ngoài hẳn Scaffold nên dùng rootNavController
                     rootNavController.navigate("result_screen")
-                }
+                },
+                onNotificationNavigate = {
+                    rootNavController.navigate("notifications")
+                },
+                notificationViewModel = notificationViewModel
             )
         },
         bottomBar = {
             MainBottomBar(navController = bottomNavController)
         }
     ) { innerPadding ->
-        // NAVHOST NỘI BỘ: Đã thêm hiệu ứng Fade In/Out cực mượt cho 4 Tab
         NavHost(
             navController = bottomNavController,
             startDestination = "home",
@@ -87,41 +102,35 @@ fun MainScreen(rootNavController: NavHostController) {
         ) {
             composable("home") { HomeScreen(navController = rootNavController) }
             composable("scan") { ScannerScreen(navController = rootNavController) }
-            composable("favorite") { FavoriteScreen(navController = rootNavController) }
+
+            // ĐÃ ĐỔI: Sử dụng màn hình Thảo luận (Discuss) làm tab thứ 3
+            composable("discuss") { DiscussScreen(navController = rootNavController) }
+
             composable("menu") {
                 val context = LocalContext.current
                 val scope = rememberCoroutineScope()
 
                 MenuScreen(
-                    onNavigateToProfile = {
-                        rootNavController.navigate("profile")
-                    },
-                    onNavigateToContribution = {
-                        rootNavController.navigate("contribution")
-                    },
-                    onNavigateToDiscuss = {
-                        rootNavController.navigate("discuss")
-                    },
+                    onNavigateToProfile = { rootNavController.navigate("profile") },
+                    onNavigateToContribution = { rootNavController.navigate("contribution") },
+                    // ĐÃ ĐỔI: Nút ở Menu giờ sẽ điều hướng ra Favorite
+                    onNavigateToFavorite = { rootNavController.navigate("favorite") },
+                    onNavigateToLeaderboard = { rootNavController.navigate("leaderboard") },
                     onLogout = {
                         scope.launch(Dispatchers.IO) {
                             try {
-                                // 1. Xóa trí nhớ của Google
-                                val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
-                                    com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN
+                                val gso = GoogleSignInOptions.Builder(
+                                    GoogleSignInOptions.DEFAULT_SIGN_IN
                                 ).build()
-                                val googleSignInClient = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, gso)
+                                val googleSignInClient = GoogleSignIn.getClient(context, gso)
                                 googleSignInClient.signOut()
-
-                                // 2. Đăng xuất khỏi Supabase
                                 com.example.endangeredanimals.Component.SupabaseInstance.client.auth.signOut()
 
-                                // 3. CHỈ CẦN ĐIỀU HƯỚNG VỀ LOGIN VÀ XÓA BACKSTACK
                                 withContext(Dispatchers.Main) {
                                     rootNavController.navigate("login") {
                                         popUpTo(0) { inclusive = true }
                                     }
                                 }
-
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             }
@@ -135,7 +144,13 @@ fun MainScreen(rootNavController: NavHostController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MainTopAppBar(onSearchNavigate: () -> Unit) {
+private fun MainTopAppBar(
+    onSearchNavigate: () -> Unit,
+    onNotificationNavigate: () -> Unit,
+    notificationViewModel: NotificationViewModel
+) {
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
+
     TopAppBar(
         colors = topAppBarColors(containerColor = MaterialTheme.colorScheme.primary),
         title = {
@@ -176,14 +191,25 @@ private fun MainTopAppBar(onSearchNavigate: () -> Unit) {
                     }
                 }
 
-                Spacer(modifier = Modifier.size(8.dp))
+                Spacer(modifier = Modifier.size(16.dp))
 
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Thông báo",
-                    tint = Color.White,
-                    modifier = Modifier.size(25.dp)
-                )
+                BadgedBox(
+                    badge = {
+                        if (unreadCount > 0) {
+                            Badge(containerColor = Color.Red, contentColor = Color.White) {
+                                Text(unreadCount.toString())
+                            }
+                        }
+                    },
+                    modifier = Modifier.clickable { onNotificationNavigate() }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Thông báo",
+                        tint = Color.White,
+                        modifier = Modifier.size(25.dp)
+                    )
+                }
             }
         }
     )
@@ -191,12 +217,14 @@ private fun MainTopAppBar(onSearchNavigate: () -> Unit) {
 
 @Composable
 private fun MainBottomBar(navController: NavController) {
+    // ĐÃ ĐỔI: Chuyển icon và route thành Discuss
     val muc = listOf(
         Triple("Home", "home", R.drawable.home),
         Triple("Scan", "scan", R.drawable.scanner),
-        Triple("Favorite", "favorite", R.drawable.favorite),
+        Triple("Discuss", "discuss", R.drawable.discuss),
         Triple("Menu", "menu", R.drawable.menu)
     )
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 

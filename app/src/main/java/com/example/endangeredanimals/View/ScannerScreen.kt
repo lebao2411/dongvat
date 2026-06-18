@@ -1,7 +1,6 @@
 package com.example.endangeredanimals.View
 
 import android.net.Uri
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +29,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.airbnb.lottie.compose.*
 import com.example.endangeredanimals.R
 import com.example.endangeredanimals.ViewModel.ScannerViewModel
 
@@ -56,11 +56,13 @@ fun ScannerScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(modifier = Modifier.height(10.dp))
+
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(300.dp)
-                .clickable(enabled = uiState.imageUri == null) { // Chỉ cho bấm nếu chưa có ảnh
+                .clickable(enabled = uiState.imageUri == null) {
                     galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
             shape = RoundedCornerShape(16.dp),
@@ -82,7 +84,6 @@ fun ScannerScreen(
                         modifier = Modifier.fillMaxSize()
                     )
 
-                    // THÊM: NÚT "X" Ở GÓC TRÊN BÊN PHẢI
                     IconButton(
                         onClick = { viewModel.clearImage() },
                         modifier = Modifier
@@ -122,56 +123,77 @@ fun ScannerScreen(
             onClick = { viewModel.analyzeImage(context) },
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(25.dp),
-            enabled = uiState.imageUri != null && !uiState.isLoading
+            enabled = uiState.imageUri != null && !uiState.isLoading // Tự động xám đi khi isLoading = true
         ) {
-            if (uiState.isLoading) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                Text("Bắt đầu nhận diện AI", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
+            Text(
+                text = if (uiState.isLoading) "Đang nhận diện..." else "Bắt đầu nhận diện AI",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (uiState.aiResult != null) {
+        if (uiState.isLoading || uiState.aiResult != null) {
             Card(
-                modifier = Modifier.fillMaxWidth().wrapContentHeight(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
                 shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (uiState.isLoading) 4.dp else 4.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Box(
-                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 32.dp, start = 16.dp, end = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "Kết quả dự đoán:",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = uiState.aiResult!!,
-                            style = MaterialTheme.typography.titleLarge,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                    if (uiState.isLoading) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.animal_loading))
+                            val progress by animateLottieCompositionAsState(
+                                composition = composition,
+                                iterations = LottieConstants.IterateForever, // Lặp vô hạn
+                                isPlaying = true // Bắt buộc chạy
+                            )
+                            LottieAnimation(
+                                composition = composition,
+                                progress = { progress },
+                                modifier = Modifier.size(150.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "AI đang nhận diện...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "Kết quả dự đoán:",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = uiState.aiResult!!,
+                                style = MaterialTheme.typography.titleLarge,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
+        }
 
+        if (uiState.aiResult != null && !uiState.isLoading) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            // THÊM: LOGIC ĐỂ QUYẾT ĐỊNH XEM CÓ HIỂN THỊ 2 NÚT KHÔNG
-            // Dựa vào các câu cảnh báo cứng mà ta đã bắt AI nói trong Prompt
             val isNotAnimal = uiState.aiResult!!.contains("Đây không phải là hình ảnh động vật", ignoreCase = true)
             val isNotLocal = uiState.aiResult!!.contains("không phải động vật bản địa", ignoreCase = true)
 
-            // Chỉ hiển thị 2 nút chức năng nếu ĐÚNG là động vật VÀ CÓ ở Việt Nam
             if (!isNotAnimal && !isNotLocal) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
@@ -183,7 +205,6 @@ fun ScannerScreen(
                                 navController.navigate("animal_screen/$id")
                             }
                         },
-                        // Nút bị mờ đi nếu đang tìm DB hoặc tìm không ra ID
                         enabled = uiState.matchedAnimalId != null && !uiState.isSearchingDb,
                         modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(25.dp)
@@ -191,7 +212,7 @@ fun ScannerScreen(
                         if (uiState.isSearchingDb) {
                             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         } else if (uiState.matchedAnimalId == null) {
-                            Text("Chưa có Dữ liệu", fontSize = 12.sp) // Cảnh báo nhẹ nếu DB chưa có
+                            Text("Chưa có Dữ liệu", fontSize = 12.sp)
                         } else {
                             Text("Thông tin loài", color = MaterialTheme.colorScheme.onSurface)
                         }
@@ -217,5 +238,7 @@ fun ScannerScreen(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(20.dp))
     }
 }

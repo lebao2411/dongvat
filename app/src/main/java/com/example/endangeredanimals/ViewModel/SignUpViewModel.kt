@@ -5,14 +5,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.endangeredanimals.Model.Account
 import com.example.endangeredanimals.Component.SupabaseInstance
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
-import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 sealed class SignUpUIState {
     object Idle : SignUpUIState()
@@ -68,21 +68,19 @@ class SignUpViewModel : ViewModel() {
         viewModelScope.launch {
             _signUpUIState.value = SignUpUIState.Loading
             try {
-                // 1. SUPABASE: Tạo tài khoản Auth
+                // 1. SUPABASE: Tạo tài khoản Auth và đính kèm userName vào MetaData
                 val user = client.auth.signUpWith(Email) {
                     this.email = this@SignUpViewModel.email
                     this.password = this@SignUpViewModel.password
+
+                    // Gói userName vào meta_data để Trigger trên Database có thể lấy được
+                    this.data = buildJsonObject {
+                        put("full_name", userName)
+                    }
                 }
 
                 if (user != null) {
-                    // 2. SUPABASE: Lưu thông tin bổ sung vào bảng accounts
-                    val account = Account(
-                        userId = user.id,
-                        userName = userName,
-                        email = user.email ?: ""
-
-                    )
-                    client.from("accounts").insert(account)
+                    // Đã loại bỏ lệnh client.from("accounts").insert() vì Trigger đã tự làm!
                     _signUpUIState.value = SignUpUIState.Success
                 } else {
                     _signUpUIState.value = SignUpUIState.Error("Đăng ký thành công nhưng không lấy được thông tin người dùng.")

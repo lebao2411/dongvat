@@ -7,7 +7,6 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.endangeredanimals.Model.Account
-import com.example.endangeredanimals.Model.PointLog
 import com.example.endangeredanimals.Component.SupabaseInstance
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import io.github.jan.supabase.gotrue.auth
@@ -62,13 +61,10 @@ class ProfileViewModel : ViewModel() {
 
     private suspend fun fetchUserDataFromSupabase() {
         val user = client.auth.currentSessionOrNull()?.user
-        if (user == null) {
-            // Không đặt lỗi ở đây nếu là lúc mới khởi tạo để tránh hiện Toast lỗi vô duyên
-            return
-        }
+        if (user == null) return
 
         try {
-            // 1. Lấy thông tin cơ bản từ bảng accounts
+            // LẤY THẲNG DỮ LIỆU TỪ BẢNG ACCOUNTS (Tin tưởng 100% vào Database Trigger)
             val accountResult = client.from("accounts")
                 .select {
                     filter {
@@ -77,41 +73,18 @@ class ProfileViewModel : ViewModel() {
                 }
                 .decodeSingleOrNull<Account>()
 
-            // 2. Lấy toàn bộ nhật ký điểm từ bảng point_logs để tính tổng điểm thực tế
-            val logsResult = client.from("point_logs")
-                .select {
-                    filter {
-                        eq("accountId", user.id)
-                    }
-                }
-                .decodeList<PointLog>()
-
-            // Đảm bảo chỉ tính các điểm hợp lệ (tránh null nếu có)
-            val calculatedScore = logsResult.filter { it.accountId == user.id }.sumOf { it.points }
-            
-            // 3. Tính toán danh hiệu dựa trên điểm số thực tế vừa tính
-            val calculatedTitle = when {
-                calculatedScore >= 1000 -> "Anh hùng thiên nhiên"
-                calculatedScore >= 500 -> "Chuyên gia bảo tồn"
-                calculatedScore >= 100 -> "Thành viên tích cực"
-                else -> "Tân binh bảo tồn"
-            }
-
             if (accountResult != null) {
-                // Ghi đè score và title bằng giá trị thực tế từ logs
-                accountState = accountResult.copy(
-                    score = calculatedScore,
-                    title = calculatedTitle
-                )
+                // Database đã tính sẵn score và title, App chỉ việc nhận và hiển thị
+                accountState = accountResult
                 _profileState.value = ProfileState.Idle
             } else {
-                // Tạo mới nếu chưa có
+                // Nếu user mới tinh chưa có trong bảng accounts -> Tạo mới
                 val newAccount = Account(
                     userId = user.id,
-                    userName = user.userMetadata?.get("full_name")?.toString() ?: "Người dùng mới",
+                    userName = user.userMetadata?.get("full_name")?.toString()?.removeSurrounding("\"") ?: "Người dùng mới",
                     email = user.email ?: "",
-                    score = calculatedScore,
-                    title = calculatedTitle
+                    score = 0,
+                    title = "Tân binh bảo tồn"
                 )
                 client.from("accounts").insert(newAccount)
                 accountState = newAccount

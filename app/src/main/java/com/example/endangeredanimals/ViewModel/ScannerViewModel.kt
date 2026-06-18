@@ -10,8 +10,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.endangeredanimals.Component.AnimalAiService
-import com.example.endangeredanimals.Model.Animal // Import Model của bạn
-import com.example.endangeredanimals.Component.SupabaseInstance // Import Supabase của bạn
+import com.example.endangeredanimals.Model.Animal
+import com.example.endangeredanimals.Component.SupabaseInstance
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,13 +20,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 
 data class ScannerUiState(
     val imageUri: Uri? = null,
     val aiResult: String? = null,
     val isLoading: Boolean = false,
-
-    // THÊM: Các trạng thái cho việc tìm kiếm Database
     val isSearchingDb: Boolean = false,
     val matchedAnimalId: String? = null
 )
@@ -42,14 +41,13 @@ class ScannerViewModel : ViewModel() {
             currentState.copy(
                 imageUri = uri,
                 aiResult = null,
-                matchedAnimalId = null // Reset khi chọn ảnh mới
+                matchedAnimalId = null
             )
         }
     }
 
-    // THÊM: Hàm xóa ảnh (Nút X)
     fun clearImage() {
-        _uiState.update { ScannerUiState() } // Đưa mọi thứ về trạng thái tinh khôi
+        _uiState.update { ScannerUiState() }
     }
 
     fun analyzeImage(context: Context) {
@@ -64,17 +62,52 @@ class ScannerViewModel : ViewModel() {
                 }
 
                 if (bitmap != null) {
-                    val resultText = aiService.analyzeAnimalImage(bitmap)
+                    val rawResultText = aiService.analyzeAnimalImage(bitmap)
+                    var displayResult = rawResultText // Giá trị dự phòng nếu lỗi
+
+                    // BÓC TÁCH JSON VÀ ĐỊNH DẠNG LẠI CHO NGƯỜI ĐỌC
+                    try {
+                        val jsonArray = JSONArray(rawResultText)
+                        if (jsonArray.length() == 0) {
+                            displayResult = "⚠️ Đây không phải là hình ảnh động vật."
+                        } else {
+                            // Tìm phần tử có độ tự tin cao nhất
+                            var bestMatch = jsonArray.getJSONObject(0)
+                            var maxConf = bestMatch.getInt("confidence")
+
+                            for (i in 1 until jsonArray.length()) {
+                                val item = jsonArray.getJSONObject(i)
+                                val conf = item.getInt("confidence")
+                                if (conf > maxConf) {
+                                    maxConf = conf
+                                    bestMatch = item
+                                }
+                            }
+
+                            val speciesName = bestMatch.getString("speciesName")
+                            val confidence = bestMatch.getInt("confidence")
+                            val characteristics = bestMatch.getString("characteristics")
+                            val note = bestMatch.getString("note")
+
+                            // Định dạng đúng chuẩn để ScannerScreen có thể đọc được
+                            displayResult = "Tên loài: $speciesName\n" +
+                                    "Độ tự tin: $confidence%\n\n" +
+                                    "Đặc điểm: $characteristics\n" +
+                                    "Lưu ý: $note"
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ScannerVM", "Lỗi parse JSON: ${e.message}")
+                    }
 
                     _uiState.update { currentState ->
                         currentState.copy(
                             isLoading = false,
-                            aiResult = resultText
+                            aiResult = displayResult
                         )
                     }
 
-                    // TỰ ĐỘNG TÌM KIẾM TRONG DB KHI CÓ KẾT QUẢ AI
-                    searchAnimalInDatabase(resultText)
+                    // Gọi tìm kiếm trong DB dựa trên chuỗi đã format
+                    searchAnimalInDatabase(displayResult)
 
                 } else {
                     _uiState.update { it.copy(isLoading = false, aiResult = "Lỗi: Không thể đọc được hình ảnh.") }
@@ -85,30 +118,25 @@ class ScannerViewModel : ViewModel() {
         }
     }
 
-    // THÊM: Hàm móc tên khoa học và truy vấn DB
     private fun searchAnimalInDatabase(aiResult: String) {
-        // Dùng Regex để lấy dòng chữ nằm giữa 2 dấu ngoặc đơn ()
         val regex = Regex("""\(([^)]+)\)""")
         val matchResult = regex.find(aiResult)
 
-        // Nếu không tìm thấy tên khoa học (ví dụ AI trả lời lỗi), thì dừng lại
         val scientificName = matchResult?.groups?.get(1)?.value ?: return
 
         _uiState.update { it.copy(isSearchingDb = true) }
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Truy vấn Supabase: Lọc xem có con vật nào chứa tên khoa học này không
                 val animals = SupabaseInstance.client
                     .from("animals")
                     .select {
                         filter {
-                            ilike("nameLatin", "%$scientificName%") // ilike: Tìm kiếm không phân biệt hoa/thường
+                            ilike("nameLatin", "%$scientificName%")
                         }
                     }
                     .decodeList<Animal>()
 
-                // Lấy ID của con vật đầu tiên tìm thấy
                 val foundAnimalId = animals.firstOrNull()?.animalID
 
                 Log.d("ScannerVM", "Tên khoa học: $scientificName - ID tìm thấy: $foundAnimalId")

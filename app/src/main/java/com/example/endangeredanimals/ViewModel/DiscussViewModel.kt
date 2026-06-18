@@ -42,6 +42,9 @@ class DiscussViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
 
+    private val _userNamesMap = MutableStateFlow<Map<String, String>>(emptyMap())
+    val userNamesMap = _userNamesMap.asStateFlow()
+
     init {
         val user = SupabaseInstance.client.auth.currentSessionOrNull()?.user
         if (user != null) {
@@ -60,6 +63,17 @@ class DiscussViewModel : ViewModel() {
                     .select { filter { eq("status", "discussing") } }
                     .decodeList<Contribution>()
                 _contributions.value = result
+
+                // MỚI THÊM: Lấy danh sách tên người dùng
+                val accountIds = result.mapNotNull { it.accountId }.distinct()
+                if (accountIds.isNotEmpty()) {
+                    val accounts = SupabaseInstance.client.from("accounts")
+                        .select { filter { isIn("userId", accountIds) } }
+                        .decodeList<com.example.endangeredanimals.Model.Account>()
+
+                    val nameMap = accounts.associate { it.userId to it.userName }
+                    _userNamesMap.value = nameMap
+                }
             } catch (e: Exception) { e.printStackTrace() }
             finally { _isLoading.value = false }
         }
@@ -68,34 +82,46 @@ class DiscussViewModel : ViewModel() {
     fun fetchDiscussionsForContribution(contributionId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Reset dữ liệu vote cũ trước khi tải thảo luận mới
                 _voteData.value = emptyMap()
 
-                val discussions = SupabaseInstance.client.from("community_discussions")
+                val rawDiscussions = SupabaseInstance.client.from("community_discussions")
                     .select { filter { eq("contributionId", contributionId) } }
                     .decodeList<CommunityDiscussion>()
-                    .sortedWith(compareByDescending<CommunityDiscussion> { it.accountId == "SYSTEM_AI" }
-                        .thenBy { it.createdAt })
 
-                _currentDiscussions.value = discussions
-                discussions.forEach { fetchVotesForDiscussion(it.discussionId) }
+                // --- LOGIC SẮP XẾP LỒNG NHAU ---
+                // 1. Bình luận của AI luôn ở trên cùng
+                val aiComments = rawDiscussions.filter { it.accountId == "SYSTEM_AI" }.sortedBy { it.createdAt }
+                // 2. Bình luận gốc của User
+                val userParents = rawDiscussions.filter { it.accountId != "SYSTEM_AI" && it.parentId == null }.sortedBy { it.createdAt }
+                // 3. Gom nhóm các câu trả lời theo parentId
+                val userChildren = rawDiscussions.filter { it.parentId != null }.groupBy { it.parentId }
 
-                // --- BẮT ĐẦU DỊCH ID THÀNH TÊN TIẾNG VIỆT ---
-                val animalIds = discussions.mapNotNull { it.suggestedAnimalId }.filter { it.isNotBlank() }.distinct()
+                val finalDisplayList = mutableListOf<CommunityDiscussion>()
+                finalDisplayList.addAll(aiComments)
+
+                // Lắp ráp: Cứ 1 bình luận cha thì kéo theo các bình luận con của nó
+                for (parent in userParents) {
+                    finalDisplayList.add(parent)
+                    userChildren[parent.discussionId]?.let { children ->
+                        finalDisplayList.addAll(children.sortedBy { it.createdAt })
+                    }
+                }
+
+                _currentDiscussions.value = finalDisplayList
+                finalDisplayList.forEach { fetchVotesForDiscussion(it.discussionId) }
+
+                // --- DỊCH ID THÀNH TÊN TIẾNG VIỆT ---
+                val animalIds = rawDiscussions.mapNotNull { it.suggestedAnimalId }.filter { it.isNotBlank() }.distinct()
                 if (animalIds.isNotEmpty()) {
                     val animals = SupabaseInstance.client.from("animals")
-                        // Đã sửa thành "animalId" (chữ d thường) để khớp với Database Supabase
                         .select { filter { isIn("animalId", animalIds) } }
                         .decodeList<com.example.endangeredanimals.Model.Animal>()
 
-                    // Đã dùng chính xác biến animalID và nameVn từ Model Animal của bạn
                     val nameMap = animals.filter { it.animalID != null }.associate {
                         it.animalID!! to (it.nameVn ?: "Loài chưa xác định")
                     }
                     _animalNamesMap.value = nameMap
                 }
-                // ---------------------------------------------
-
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
@@ -123,15 +149,13 @@ class DiscussViewModel : ViewModel() {
         }
     }
 
-    fun sendComment(contributionId: String, text: String, sciName: String?, vnName: String?, onComplete: (String?) -> Unit) {
+    fun sendComment(contributionId: String, text: String, sciName: String?, vnName: String?, parentId: Long? = null, onComplete: (String?) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             val user = SupabaseInstance.client.auth.currentSessionOrNull()?.user
             val fakeId = System.currentTimeMillis()
 
             try {
                 var finalRealAnimalId: String? = null
-
-                // 1. Nếu có đề xuất, phải lấy ID thật từ DB trước
                 if (sciName != null) {
                     try {
                         val animals = SupabaseInstance.client.from("animals")
@@ -141,8 +165,6 @@ class DiscussViewModel : ViewModel() {
                         val foundId = animals.firstOrNull()?.animalID
                         if (foundId != null) {
                             finalRealAnimalId = foundId
-
-                            // Nạp ngay tên Tiếng Việt vào Từ điển để hiển thị lập tức
                             if (vnName != null) {
                                 _animalNamesMap.value = _animalNamesMap.value + (finalRealAnimalId to vnName)
                             }
@@ -154,30 +176,31 @@ class DiscussViewModel : ViewModel() {
                     }
                 }
 
-                // 2. Chèn tạm lên màn hình bằng ID THẬT
+                // Cập nhật chèn tạm thời
                 val tempComment = CommunityDiscussion(
                     discussionId = fakeId,
                     contributionId = contributionId,
                     accountId = user?.id ?: "unknown",
                     comment = text,
                     suggestedAnimalId = finalRealAnimalId,
-                    createdAt = null
+                    createdAt = null,
+                    parentId = parentId // Lưu parentId
                 )
 
                 withContext(Dispatchers.Main) {
                     val currentList = _currentDiscussions.value.toMutableList()
-                    val insertIndex = currentList.indexOfLast { it.accountId == "SYSTEM_AI" } + 1
-                    currentList.add(if (insertIndex > 0) insertIndex else 0, tempComment)
+                    currentList.add(tempComment)
                     _currentDiscussions.value = currentList
-                    onComplete(null) // Xóa rỗng ô nhập liệu
+                    onComplete(null)
                 }
 
-                // 3. Đẩy lên Supabase
+                // Đẩy lên Supabase
                 val newCommentToDB = CommunityDiscussionInsert(
                     contributionId = contributionId,
                     accountId = user?.id,
                     comment = text,
-                    suggestedAnimalId = finalRealAnimalId
+                    suggestedAnimalId = finalRealAnimalId,
+                    parentId = parentId // Ghi vào DB
                 )
                 SupabaseInstance.client.from("community_discussions").insert(newCommentToDB)
                 fetchDiscussionsForContribution(contributionId)
@@ -203,23 +226,21 @@ class DiscussViewModel : ViewModel() {
             try {
                 val userId = SupabaseInstance.client.auth.currentSessionOrNull()?.user?.id ?: return@launch
 
-                // 1. TRUY VẤN TRỰC TIẾP TỪ DB ĐỂ XÁC ĐỊNH TRẠNG THÁI HIỆN TẠI (ĐẢM BẢO CHÍNH XÁC)
-                val currentVoteInDb = SupabaseInstance.client.from("discussion_votes")
-                    .select {
-                        filter {
-                            eq("discussionId", discussionId)
-                            eq("accountId", userId)
-                        }
-                    }
-                    .decodeSingleOrNull<DiscussionVote>()
-
-                val oldVoteStr = currentVoteInDb?.voteType?.lowercase()
+                // 1. LẤY TRẠNG THÁI HIỆN TẠI TỪ LOCAL ĐỂ XỬ LÝ NHANH
+                val oldVoteData = _voteData.value[discussionId]
+                val oldVoteState = oldVoteData?.userVote ?: VoteState.NONE
+                
                 val nextVoteType = if (isLike == true) "like" else if (isLike == false) "dislike" else null
+                val oldVoteStr = when(oldVoteState) {
+                    VoteState.LIKE -> "like"
+                    VoteState.DISLIKE -> "dislike"
+                    else -> null
+                }
 
                 // Nếu nhấn lại chính nút đang chọn -> Tắt vote (Toggle off)
                 val finalVoteType = if (oldVoteStr == nextVoteType) null else nextVoteType
 
-                // 2. CẬP NHẬT BẢNG VOTE
+                // 2. CẬP NHẬT BẢNG VOTE TRÊN SUPABASE (Xóa cũ - Ghi mới)
                 SupabaseInstance.client.from("discussion_votes").delete {
                     filter { eq("discussionId", discussionId); eq("accountId", userId) }
                 }
@@ -229,22 +250,22 @@ class DiscussViewModel : ViewModel() {
                     SupabaseInstance.client.from("discussion_votes").insert(newVote)
                 }
 
-                // 3. LOGIC TÍNH ĐIỂM (DỰA TRÊN TRẠNG THÁI THẬT TRONG DB)
+                // 3. LOGIC TÍNH ĐIỂM (Dựa trên sự thay đổi trạng thái Like thật sự)
                 val targetComment = _currentDiscussions.value.find { it.discussionId == discussionId }
                 val authorId = targetComment?.accountId
 
                 if (authorId != null && authorId != "SYSTEM_AI" && authorId != userId) {
-                    val wasLiked = oldVoteStr == "like"
+                    val wasLiked = oldVoteState == VoteState.LIKE
                     val isNowLiked = finalVoteType == "like"
 
                     val pointsToChange = when {
-                        !wasLiked && isNowLiked -> 3   // Thực sự từ Không Like -> Like: +3
-                        wasLiked && !isNowLiked -> -3  // Thực sự từ Like -> Không Like: -3
+                        !wasLiked && isNowLiked -> 3   // Từ Không Like -> Like: +3
+                        wasLiked && !isNowLiked -> -3  // Từ Like -> Không Like: -3
                         else -> 0                     // Các trường hợp khác: 0
                     }
 
                     if (pointsToChange != 0) {
-                        // Ghi log điểm
+                        // Ghi log điểm - Supabase Trigger sẽ tự cộng điểm vào accounts
                         val actionType = if (pointsToChange > 0) "LIKE_ACTION" else "UNLIKE_ACTION"
                         val newLog = PointLogInsert(
                             accountId = authorId,
@@ -253,9 +274,6 @@ class DiscussViewModel : ViewModel() {
                             referenceId = discussionId.toString()
                         )
                         SupabaseInstance.client.from("point_logs").insert(newLog)
-                        
-                        // Cập nhật Profile (Tính tổng điểm từ logs như ProfileViewModel đã làm)
-                        syncAccountScore(authorId)
                     }
                 }
                 
@@ -268,31 +286,34 @@ class DiscussViewModel : ViewModel() {
         }
     }
 
-    // Hàm phụ trợ để đồng bộ điểm số vào bảng accounts một cách chính xác
-    private suspend fun syncAccountScore(userId: String) {
-        try {
-            val logs = SupabaseInstance.client.from("point_logs")
-                .select { filter { eq("accountId", userId) } }
-                .decodeList<com.example.endangeredanimals.Model.PointLog>()
-            
-            val totalScore = logs.sumOf { it.points }
-            val newTitle = when {
-                totalScore >= 1000 -> "Anh hùng thiên nhiên"
-                totalScore >= 500 -> "Chuyên gia bảo tồn"
-                totalScore >= 100 -> "Thành viên tích cực"
-                else -> "Tân binh bảo tồn"
-            }
+    // Thêm state lưu trữ danh sách động vật
+    private val _allAnimals = MutableStateFlow<List<com.example.endangeredanimals.Model.Animal>>(emptyList())
+    val allAnimals = _allAnimals.asStateFlow()
 
-            SupabaseInstance.client.from("accounts").update(
-                {
-                    set("score", totalScore)
-                    set("title", newTitle)
-                }
-            ) { filter { eq("userId", userId) } }
-            
-            Log.d("ScoreTest", "Đã đồng bộ tổng điểm cho $userId: $totalScore")
-        } catch (e: Exception) {
-            Log.e("ScoreTest", "Lỗi đồng bộ: ${e.message}")
+    init {
+        val user = SupabaseInstance.client.auth.currentSessionOrNull()?.user
+        if (user != null) {
+            fetchDiscussingContributions()
+            fetchAllAnimals() // Gọi hàm tải toàn bộ động vật
+        } else {
+            _contributions.value = emptyList()
+            _isLoading.value = false
+        }
+    }
+
+    // Hàm tải toàn bộ động vật từ DB
+    private fun fetchAllAnimals() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val animals = SupabaseInstance.client.from("animals")
+                    .select()
+                    .decodeList<com.example.endangeredanimals.Model.Animal>()
+                    // Sắp xếp theo bảng chữ cái tiếng Việt
+                    .sortedBy { it.nameVn ?: "" }
+                _allAnimals.value = animals
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }
